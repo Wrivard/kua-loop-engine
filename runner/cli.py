@@ -14,11 +14,51 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 
 def _not_yet(name: str) -> int:
     print(f"kua {name} : pas encore implémenté (scaffold, étape 1 du setup).", file=sys.stderr)
     return 2
+
+
+def cmd_sync(target: str) -> int:
+    """Parse + valide .kua/loops.yaml (dry-run). L'upsert DB reste TODO (design).
+
+    Résout le chemin : un repo (cherche .kua/loops.yaml) ou un fichier loops.yaml
+    direct. 'all' n'est pas encore supporté.
+    """
+    from kua_core.loops_yaml import parse_loops_yaml
+
+    if target == "all":
+        print("kua sync all : pas encore supporté (itération multi-repos = TODO).", file=sys.stderr)
+        return 2
+
+    p = Path(target)
+    candidate = p / ".kua" / "loops.yaml" if p.is_dir() else p
+    if not candidate.exists():
+        print(f"kua sync : introuvable {candidate}", file=sys.stderr)
+        return 1
+
+    try:
+        parsed = parse_loops_yaml(candidate)
+    except (ValueError, OSError) as exc:
+        print(f"kua sync : config invalide — {exc}", file=sys.stderr)
+        return 1
+
+    print(f"projet : {parsed.project} (plan={parsed.plan})")
+    for lp in parsed.loops:
+        flag = "on " if lp.enabled else "off"
+        sched = f" cron='{lp.schedule_cron}'" if lp.schedule_cron else ""
+        print(
+            f"  [{flag}] {lp.facade:8s} autonomy={lp.autonomy} model={lp.model} "
+            f"budget=${lp.budget_usd}{sched}"
+        )
+    if parsed.escalation:
+        print(f"escalation : {parsed.escalation}")
+    print("\n(dry-run : upsert projects/loops en DB = TODO, dépend d'une décision "
+          "design sur la source de repo_url/name — voir kua_core/loops_yaml.py)")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,6 +91,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "sync":
+        return cmd_sync(args.target)
     return _not_yet(args.command)
 
 
