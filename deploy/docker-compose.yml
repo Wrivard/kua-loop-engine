@@ -1,0 +1,17 @@
+# Placeholder — sandbox d'exécution durci pour les runs (doc 05 : terminal.backend: docker)
+#
+# Hermes utilise `terminal.backend: docker` par défaut pour isoler les runs
+# (`ssh` réservé au repo du moteur, qui ne modifie pas son propre code — doc 13 §3).
+# Ce fichier documente l'intention ; l'image/sandbox réelle se définit pendant les
+# spikes (S3) une fois l'invocation `claude -p` validée. Ne PAS activer tel quel.
+
+version: "3.9"
+services:
+  runner-sandbox:
+    # Image à définir au spike S3 (base avec git + node/python + claude code).
+    image: "TODO-s3:latest"
+    profiles: ["disabled"]   # n'est jamais démarré tant que le profil n'est pas activé
+    working_dir: /workspace
+    # Aucune credential prod montée ici (doc 13 §modèle de menace).
+    environment:
+      - MAX_CONCURRENT_RUNS=${MAX_CONCURRENT_RUNS:-2}

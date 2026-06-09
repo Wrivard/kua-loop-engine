@@ -1,0 +1,24 @@
+# Trigger Gateway (FastAPI) — doc 05 / doc 07
+# Template — copié dans /etc/systemd/system/ mais PAS activé tant que les spikes
+# ne sont pas verts. Activation : sudo systemctl enable --now kua-gateway
+[Unit]
+Description=kua-loop-engine Trigger Gateway (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kua-engine
+Group=kua-engine
+WorkingDirectory=/home/kua-engine/kua-loop-engine/gateway
+EnvironmentFile=/srv/kua/.env
+ExecStart=/home/kua-engine/kua-loop-engine/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+# Logs JSON structurés (stdout) → journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kua-gateway
+
+[Install]
+WantedBy=multi-user.target

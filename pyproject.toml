@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kua-loop-engine"
+version = "0.1.0"
+description = "Moteur d'automatisation par loops pour l'agence Küa — paquets partagés (kua_core, runner, agent)."
+requires-python = ">=3.11"
+dependencies = [
+  "python-dotenv>=1,<2",
+  "psycopg[binary]>=3.1,<4",
+]
+
+[project.scripts]
+# CLI du Runner (doc 06) — aussi appelée par Hermes.
+kua = "runner.cli:main"
+
+[tool.setuptools]
+# Le gateway reste un service autonome (son propre requirements.txt) et n'est
+# pas packagé ici. L'UI est séparée (Node/Vercel).
+packages = ["kua_core", "runner", "agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

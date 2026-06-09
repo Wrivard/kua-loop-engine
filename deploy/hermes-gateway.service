@@ -1,0 +1,25 @@
+# Hermes Agent — gateway Discord + cron (doc 05)
+# Template — PAS activé. Hermes est installé et configuré par William
+# (`hermes setup`, `hermes gateway setup` — interactif : OAuth + Discord).
+# Ajuste ExecStart au chemin réel du binaire après installation (which hermes).
+# Activation : sudo systemctl enable --now hermes-gateway
+[Unit]
+Description=Hermes Agent gateway (Discord + cron)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kua-engine
+Group=kua-engine
+WorkingDirectory=/home/kua-engine
+# EnvironmentFile facultatif : Hermes gère ses propres secrets dans ~/.hermes/
+ExecStart=/usr/local/bin/hermes gateway start
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hermes-gateway
+
+[Install]
+WantedBy=multi-user.target

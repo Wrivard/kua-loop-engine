@@ -1,0 +1,17 @@
+# Caddy — reverse proxy TLS pour le Trigger Gateway (doc 05)
+# Expose le gateway (127.0.0.1:8000) sous https://hooks.kua.quebec.
+#
+# PRÉREQUIS (action humaine — hors du périmètre de l'agent) :
+#   1. DNS : un enregistrement A  hooks.kua.quebec → IP publique du VPS.
+#   2. Firewall : ouvrir les ports 80 et 443 dans ufw (le TLS auto Let's Encrypt
+#      en a besoin). L'agent NE touche PAS au firewall.
+# Tant que ces deux conditions ne sont pas réunies, Caddy ne peut pas obtenir
+# de certificat — c'est normal.
+
+hooks.kua.quebec {
+	encode gzip
+	reverse_proxy 127.0.0.1:8000
+	log {
+		output file /var/log/caddy/hooks.kua.quebec.log
+	}
+}

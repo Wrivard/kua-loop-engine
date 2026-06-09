@@ -1,0 +1,23 @@
+# Runner (worker Python) — doc 05 / doc 06
+# Template — PAS activé. Le Runner est le seul invocateur de `claude -p`.
+# Activation : sudo systemctl enable --now kua-runner
+[Unit]
+Description=kua-loop-engine Runner (worker claude -p)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kua-engine
+Group=kua-engine
+WorkingDirectory=/home/kua-engine/kua-loop-engine
+EnvironmentFile=/srv/kua/.env
+ExecStart=/home/kua-engine/kua-loop-engine/.venv/bin/python -m runner.runner
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kua-runner
+
+[Install]
+WantedBy=multi-user.target
