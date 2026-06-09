@@ -16,17 +16,33 @@ Le seul endroit du système où `claude -p` est invoqué. Worker Python qui poll
 8. CLEANUP    : checkout supprimé après N jours (job de ménage)
 ```
 
-## Invocation `claude -p`
+## Invocation `claude -p` (VÉRIFIÉE au spike S3 — Claude Code 2.1.170, 2026-06-09)
 ```bash
 cd {checkout} && timeout {timeout_min}m claude -p "{goal}" \
   --output-format json \
-  --max-turns {max_iterations} \
+  --max-budget-usd {budget_usd} \
   --model {model} \
   --permission-mode acceptEdits
 ```
 - Les permissions bash viennent du `.claude/settings.json` du repo (fail-closed).
-- Sortie JSON : parser `result`, `total_cost_usd`, `num_turns` → colonnes du run. Si le coût en cours dépasse `budget_usd` ou le timeout sonne → kill, status `budget_exceeded`/`timed_out`, notification.
-- **À valider au spike S3** : noms exacts des flags/champs JSON selon la version installée de Claude Code (`claude --help`). Le doc fixe l'intention ; le spike fixe la syntaxe.
+- **`--max-turns` N'EXISTE PLUS** en 2.1.170. Le budget s'impose nativement via
+  **`--max-budget-usd`** (Claude s'arrête quand le prochain tour dépasserait le
+  montant) ; le timeout reste géré par `timeout {timeout_min}m`. La colonne
+  `loops.max_iterations` n'a plus d'équivalent CLI direct — la garder comme repère
+  produit/coût, mais les vrais garde-fous d'exécution sont `--max-budget-usd` + timeout.
+- Flags utiles confirmés : `--effort {low|medium|high|xhigh|max}`, `--fallback-model`,
+  `-w/--worktree`, `--json-schema`, `--session-id` (pour les redos dans un thread),
+  `--allowedTools`/`--disallowedTools`, `--add-dir`, `--settings`.
+- Sortie JSON (`--output-format json`, clés vérifiées) :
+  - `type` = "result", `subtype` = "success" | (erreur), `is_error` (bool).
+  - `result` (str, sortie finale), `total_cost_usd` (float), `num_turns` (int).
+  - `stop_reason`, `terminal_reason`, `session_id`, `duration_ms`, `usage`,
+    `modelUsage`, `permission_denials` (list).
+  → mapper `result`→summary, `total_cost_usd`→cost_usd, `num_turns`→iterations,
+    `session_id`→pour reprise/redo. `is_error=true` ou `subtype≠success` → run `failed`.
+- Si le coût dépasse `budget_usd` (Claude coupe via `--max-budget-usd`) ou le timeout
+  sonne → status `budget_exceeded`/`timed_out`, notification. Le test du kill est un
+  critère d'acceptation de la Phase 1.
 
 ## Compilation du goal (par façade)
 Chaque façade a un gabarit dans `runner/goals/{facade}.md` avec des slots `{...}`. Règles communes injectées en fin de goal :

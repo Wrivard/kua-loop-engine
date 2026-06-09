@@ -12,11 +12,14 @@ spikes S3 (invocation `claude -p`) puis la Phase 1 (pipeline bugfix complet).
 - `cli.py` — CLI `kua` (run / sync / status / approve / reject / onboard).
 - `goals/{facade}.md` — gabarits de goal, un par façade (slots `{...}`).
 
-## Invocation `claude -p` (doc 06, à confirmer au spike S3 via `claude --help`)
+## Invocation `claude -p` (VÉRIFIÉE au spike S3 — Claude Code 2.1.170)
 ```bash
 cd {checkout} && timeout {timeout_min}m claude -p "{goal}" \
-  --output-format json --max-turns {max_iterations} \
+  --output-format json --max-budget-usd {budget_usd} \
   --model {model} --permission-mode acceptEdits
 ```
+⚠️ `--max-turns` n'existe plus en 2.1.170 → budget natif via `--max-budget-usd`.
+JSON de sortie : `result`, `total_cost_usd`, `num_turns`, `is_error`, `subtype`,
+`session_id`, `stop_reason` (voir doc 06 pour le mapping complet vers les colonnes).
 Permissions bash = `.claude/settings.json` du repo cible (fail-closed). Jamais
 `--dangerously-skip-permissions` hors sandbox jetable.
