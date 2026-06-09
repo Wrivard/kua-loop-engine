@@ -47,7 +47,24 @@ L'UI tourne sur **Vercel**, pas le VPS (Node absent ici, par design). Le squelet
 (`ui/`, spike S5 déjà commité). Vérification realtime = via déploiement Vercel + creds
 (NEXT_PUBLIC_SUPABASE_URL/ANON_KEY). À faire côté Vercel, hors VPS.
 
+## Plomberie additionnelle (autonome, 2026-06-09)
+- **`kua sync` (dry-run)** : parseur pur `kua_core/loops_yaml.py` (valide contre les enums
+  verrouillés) + `runner/cli.py::cmd_sync`. 5 tests. Upsert DB **différé** (voir bloqueurs).
+- Total tests verts : **13** (4 S3 + 4 S4 + 5 loops.yaml).
+
+## ⏳ En attente de William (bloqueurs identifiés)
+1. **Hermes** : `hermes setup` + `hermes gateway install` (OAuth + Discord) → débloque S1, S2.
+2. **Mot de passe DB** : compléter `SUPABASE_DB_URL` dans `/srv/kua/.env` → débloque la couche
+   `kua_core.db` (psycopg, transactions) et son test.
+3. **Décision design `kua sync`** : `loops.yaml` ne porte ni `repo_url` ni `name`. Les prendre
+   du remote git (`git remote get-url origin`) + slug ? ou ajouter des champs au YAML ? →
+   débloque l'upsert projects/loops.
+4. **GitHub PAT** (fine-grained, scope minimal) → débloque le push/PR draft du Runner (Phase 1).
+5. **DNS `hooks.kua.quebec` + ufw 80/443** → active le TLS Caddy (firewall gelé, action humaine).
+6. **RLS** : appliquer (avec policies) avant que l'UI Vercel dépende de la clé anon.
+
 ## Critère de sortie Phase 0 (doc 14) — état
 `kua run --project cobaye --facade bugfix --goal-extra "tâche bidon"` → PR draft + Discord + carte UI.
-**Pas encore atteint** : nécessite le Runner implémenté (Phase 1) + Hermes configuré (S1/S2) +
-push GitHub (PAT). Les briques de plus haut risque (S3 invocation/coût, S4 ingestion) sont **levées**.
+**Pas encore atteint** : nécessite le Runner implémenté (Phase 1) + Hermes (S1/S2) + push GitHub (PAT).
+Les briques de plus haut risque — **S3** (invocation/coût `claude -p`) et **S4** (ingestion webhook→DB)
+— sont **levées et testées**. La suite est de la construction (Phase 1), pas du dé-risquage.
