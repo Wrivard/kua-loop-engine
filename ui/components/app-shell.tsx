@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, Menu, LogOut } from "lucide-react";
+import { Inbox, Menu, LogOut, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FacadeDot } from "@/components/facade-mark";
+import { NewProjectDialog } from "@/components/new-project-dialog";
 import { useLiveQuery } from "@/lib/use-live-query";
 import { getSidebarProjects } from "@/lib/queries";
 import { useCurrentUser, signOut } from "@/lib/auth";
@@ -74,9 +75,22 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           <CountBadge n={totalAwaiting} />
         </Link>
 
-        <p className="px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Projets
-        </p>
+        <div className="flex items-center justify-between px-2.5 pb-1 pt-5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Projets
+          </p>
+          <NewProjectDialog
+            onCreated={onNavigate}
+            trigger={
+              <button
+                aria-label="Nouveau projet"
+                className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            }
+          />
+        </div>
         <div className="space-y-0.5">
           {list.map((p) => {
             const active = pathname === `/p/${p.id}` || pathname.startsWith(`/p/${p.id}/`);

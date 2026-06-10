@@ -25,6 +25,7 @@ import type {
   Loop,
   MessageRole,
   MessageWithRun,
+  Plan,
   Project,
   RunRow,
   SidebarProject,
@@ -242,11 +243,54 @@ export async function setLoopAutonomy(
   if (error) throw error;
 }
 
+/** Arme une façade (loop) si absente — approve_final + budget par défaut (règle #2) —
+ *  et retourne son id. Façade OUVERTE (preset ou libre). No-op (null) en preview. */
+export async function ensureLoop(projectId: string, facade: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { error } = await supabase.from("loops").upsert(
+    {
+      project_id: projectId,
+      facade,
+      enabled: true,
+      autonomy: "approve_final",
+      model: "sonnet",
+      budget_usd: 5,
+      timeout_min: 30,
+    },
+    { onConflict: "project_id,facade", ignoreDuplicates: true },
+  );
+  if (error) throw error;
+  const { data, error: selErr } = await supabase
+    .from("loops")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("facade", facade)
+    .maybeSingle();
+  if (selErr) throw selErr;
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+/** Crée un projet (slug + nom + repo_url ; repo_url vide = « nouveau projet » côté
+ *  Runner). Retourne l'id (slug), ou null en preview. */
+export async function createProject(
+  id: string,
+  name: string,
+  repoUrl: string,
+  plan: Plan = "base",
+): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { error } = await supabase
+    .from("projects")
+    .insert({ id, name, repo_url: repoUrl, plan });
+  if (error) throw error;
+  return id;
+}
+
 /** Crée une conversation (doc 12 : insère threads + 1er message ; le Runner
- *  déclenchera le 1er run). Retourne l'id du thread, ou null en preview. */
+ *  déclenchera le 1er run). Façade OUVERTE. Retourne l'id du thread, ou null en preview. */
 export async function createThread(
   projectId: string,
-  facade: Facade,
+  facade: string,
   loopId: string | null,
   subject: string,
   firstMessage: string,
