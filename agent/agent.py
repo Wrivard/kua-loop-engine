@@ -21,6 +21,7 @@ Scope par phase :
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Literal, Optional
 
@@ -35,6 +36,35 @@ class Action:
     scope: Optional[str] = None         # enqueue_run
 
 
+# Déclencheurs d'une intention « refaire » (FR + redo). Le texte du message est
+# une DONNÉE (la nuance du client), pas une instruction exécutée telle quelle.
+_REDO_RE = re.compile(
+    r"^\s*(?:refaire|refais|recommence|redo)\b\s*[:\-–—]?\s*(?P<extra>.*)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_PHASE1_REPLY = (
+    "Bien reçu. Pour l'instant je peux relancer un run si tu écris « Refaire : … » "
+    "avec ta consigne. La conversation complète (questions, ajustements) arrive bientôt."
+)
+
+
 def handle_message(thread_id: str, new_message: str) -> Action:
-    """Décide de l'action à prendre — à implémenter (Phase 1 minimal, puis Phase 2)."""
-    raise NotImplementedError("agent.handle_message : à implémenter (doc 16, scope par phase)")
+    """Décide de l'action à prendre pour un message entrant (doc 16).
+
+    Phase 1 (minimal) : une intention « Refaire : {nuance} » → UN enqueue_run
+    avec `goal_extra` (la nuance, traitée comme donnée). Tout autre message →
+    `reply` honnête (reply/ask/escalate complets = Phase 2). Ne réagit jamais à
+    ses propres messages (l'appelant ne passe que des messages humains / fins de run).
+    """
+    text = (new_message or "").strip()
+    if not text:
+        return Action(kind="reply", text="Message vide — précise ta demande.")
+
+    m = _REDO_RE.match(text)
+    if m:
+        extra = m.group("extra").strip()
+        goal_extra = extra or "Refais le dernier run en tenant compte des retours."
+        return Action(kind="enqueue_run", goal_extra=goal_extra, scope="redo")
+
+    return Action(kind="reply", text=_PHASE1_REPLY)
