@@ -142,6 +142,79 @@ def cmd_selftest(keep: bool) -> int:
     return 0 if rep.get("ok") else 1
 
 
+def cmd_connector_set(scope: str, project: str | None, type_: str, sets: list[str]) -> int:
+    from kua_core import connectors, db, secrets
+
+    ct = connectors.get_type(type_)
+    if not ct:
+        print(f"kua connector : type inconnu '{type_}'", file=sys.stderr)
+        return 1
+    if scope == "project" and not project:
+        print("kua connector : --project requis pour --scope project", file=sys.stderr)
+        return 1
+    pid = project if scope == "project" else None
+    fields: dict[str, str] = {}
+    for item in sets:
+        if "=" not in item:
+            print(f"kua connector : --set attend key=value (reçu '{item}')", file=sys.stderr)
+            return 1
+        k, v = item.split("=", 1)
+        fields[k.strip()] = v
+    known = set(ct.secret_fields) | set(ct.config_fields)
+    unknown = set(fields) - known
+    if unknown:
+        print(f"kua connector : champs inconnus {sorted(unknown)} (attendus: {sorted(known)})", file=sys.stderr)
+        return 1
+    secret_vals = {k: v for k, v in fields.items() if k in ct.secret_fields}
+    config_vals = {k: v for k, v in fields.items() if k in ct.config_fields}
+    ref = secrets.set_secret(scope, type_, pid, secret_vals) if secret_vals else secrets.secret_ref(scope, pid)
+    status, detail = "untested", "pas de validateur"
+    if ct.validate:
+        ok, detail = ct.validate(secrets.read_secret(scope, type_, pid, ct.secret_fields), config_vals)
+        status = "ok" if ok else "error"
+    conn_id = db.upsert_connection(scope, type_, pid, f"{ct.label} ({scope})", config_vals, ref, status)
+    print(f"connexion {type_} [{scope}] enregistrée (id {conn_id[:8]}) → statut: {status} ({detail})")
+    print(f"  secret → /srv/kua/secrets/{ref} (chmod 600) ; config en DB : {config_vals or '∅'}")
+    return 0
+
+
+def cmd_connector_test(scope: str, project: str | None, type_: str) -> int:
+    from kua_core import connectors, db, secrets
+
+    ct = connectors.get_type(type_)
+    if not ct:
+        print(f"kua connector : type inconnu '{type_}'", file=sys.stderr)
+        return 1
+    pid = project if scope == "project" else None
+    conn = db.get_connection(scope, type_, pid)
+    if not conn:
+        print(f"kua connector : aucune connexion {type_} [{scope}]", file=sys.stderr)
+        return 1
+    if not ct.validate:
+        db.set_connection_status(str(conn["id"]), "untested")
+        print(f"{type_} [{scope}] : pas de validateur (untested)")
+        return 0
+    sv = secrets.read_secret(scope, type_, pid, ct.secret_fields)
+    ok, detail = ct.validate(sv, conn.get("config") or {})
+    db.set_connection_status(str(conn["id"]), "ok" if ok else "error")
+    print(f"{type_} [{scope}] : {'ok' if ok else 'error'} ({detail})")
+    return 0 if ok else 1
+
+
+def cmd_connector_list(scope: str | None) -> int:
+    from kua_core import db
+
+    rows = db.list_connections(scope)
+    for c in rows:
+        print(
+            f"  {c['scope']:7s} {c['type']:11s} {str(c.get('status')):9s} "
+            f"{c.get('project_id') or '-':16s} {c.get('secret_ref') or '-'}"
+        )
+    if not rows:
+        print("  (aucune connexion)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kua", description="CLI du Runner kua-loop-engine")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -172,6 +245,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_sync = sub.add_parser("sync", help="loops.yaml → DB (dry-run)")
     p_sync.add_argument("target", help="chemin d'un repo ou 'all'")
 
+    p_conn = sub.add_parser("connector", help="connecteurs : set / test / list")
+    csub = p_conn.add_subparsers(dest="conn_cmd", required=True)
+    cset = csub.add_parser("set", help="enregistre une connexion (+ secret sur le VPS)")
+    cset.add_argument("--scope", required=True, choices=["app", "project"])
+    cset.add_argument("--project", default=None)
+    cset.add_argument("--type", required=True)
+    cset.add_argument("--set", action="append", default=[], dest="sets", metavar="key=value")
+    ctest = csub.add_parser("test", help="re-valide une connexion + maj le statut")
+    ctest.add_argument("--scope", required=True, choices=["app", "project"])
+    ctest.add_argument("--project", default=None)
+    ctest.add_argument("--type", required=True)
+    clist = csub.add_parser("list", help="liste les connexions")
+    clist.add_argument("--scope", choices=["app", "project"], default=None)
+
     return parser
 
 
@@ -191,6 +278,13 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_selftest(args.keep)
     if args.command == "sync":
         return cmd_sync(args.target)
+    if args.command == "connector":
+        if args.conn_cmd == "set":
+            return cmd_connector_set(args.scope, args.project, args.type, args.sets)
+        if args.conn_cmd == "test":
+            return cmd_connector_test(args.scope, args.project, args.type)
+        if args.conn_cmd == "list":
+            return cmd_connector_list(args.scope)
     return 2
 
 

@@ -355,3 +355,77 @@ def reap_orphaned_runs(grace_min: int) -> list[dict[str, Any]]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(REAP_ORPHANED_RUNS_SQL, (list(_ACTIVE_RUN_STATUSES), grace_min))
             return cur.fetchall()
+
+
+# ----------------------------------------------------- Connexions (doc connecteurs) ---
+# La DB ne stocke QUE métadonnées + config non-secrète + secret_ref. Jamais le secret.
+
+GET_CONNECTION_SQL_APP = (
+    "SELECT * FROM connections WHERE scope='app' AND type=%s AND project_id IS NULL LIMIT 1"
+)
+GET_CONNECTION_SQL_PROJECT = (
+    "SELECT * FROM connections WHERE scope='project' AND type=%s AND project_id=%s LIMIT 1"
+)
+
+
+def get_connection(scope: str, type_: str, project_id: Optional[str] = None) -> Optional[dict[str, Any]]:
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            if scope == "app":
+                cur.execute(GET_CONNECTION_SQL_APP, (type_,))
+            else:
+                cur.execute(GET_CONNECTION_SQL_PROJECT, (type_, project_id))
+            return cur.fetchone()
+
+
+def upsert_connection(
+    scope: str,
+    type_: str,
+    project_id: Optional[str],
+    label: Optional[str],
+    config: dict[str, Any],
+    secret_ref: Optional[str],
+    status: str = "untested",
+) -> str:
+    """Crée/maj la connexion (scope,type[,project]). config = NON-secret seulement."""
+    from psycopg.types.json import Json  # noqa: PLC0415
+
+    existing = get_connection(scope, type_, project_id)
+    with connect() as conn:
+        with conn.cursor() as cur:
+            if existing:
+                cur.execute(
+                    "UPDATE connections SET label=%s, config=%s, secret_ref=%s, status=%s, "
+                    "last_checked=now() WHERE id=%s",
+                    (label, Json(config), secret_ref, status, existing["id"]),
+                )
+                return str(existing["id"])
+            cur.execute(
+                "INSERT INTO connections (scope, project_id, type, label, config, secret_ref, status, last_checked) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, now()) RETURNING id",
+                (scope, project_id, type_, label, Json(config), secret_ref, status),
+            )
+            return str(cur.fetchone()[0])
+
+
+def set_connection_status(connection_id: str, status: str) -> None:
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE connections SET status=%s, last_checked=now() WHERE id=%s",
+                (status, connection_id),
+            )
+
+
+def list_connections(scope: Optional[str] = None) -> list[dict[str, Any]]:
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            if scope:
+                cur.execute("SELECT * FROM connections WHERE scope=%s ORDER BY type", (scope,))
+            else:
+                cur.execute("SELECT * FROM connections ORDER BY scope, type")
+            return cur.fetchall()
