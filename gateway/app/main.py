@@ -22,10 +22,10 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
-from app import bridge_auth, db, mcp_bridge
+from app import bridge_auth, db, mcp_bridge, sysctl
 from app.config import get_settings
 
 VERSION = "0.1.0-s4"
@@ -309,6 +309,128 @@ async def internal_create_project(request: Request) -> JSONResponse:
         return JSONResponse(status_code=502, content={"status": "provision_failed", "error": str(exc)})
     log_json("internal_create_project", phase="created", slug=res["slug"])
     return JSONResponse(status_code=200, content={"status": "created", **res})
+
+
+# ----------------------------------------- Panneau Système : logs / contrôle / debug ---
+# TOUS bearer INTERNAL_TOKEN. Élévations limitées à : sudoers étroit (3 services × 4 actions)
+# + groupe systemd-journal (lecture). Allowlist stricte dans app/sysctl.py. Aucun shell libre.
+
+
+def _internal_guard(request: Request) -> Optional[JSONResponse]:
+    """503 si INTERNAL_TOKEN non configuré, 401 si bearer absent/faux, sinon None."""
+    if not get_settings().internal_token:
+        return JSONResponse(status_code=503, content={"status": "internal_routes_disabled"})
+    if not _check_internal_auth(request):
+        return JSONResponse(status_code=401, content={"status": "unauthorized"})
+    return None
+
+
+def _audit_user(request: Request) -> str:
+    """Identité pour l'audit (transmise par le proxy Next depuis la session Supabase)."""
+    return request.headers.get("x-kua-user", "?")
+
+
+def _perform_control(action: str, service: str, user: str, background: BackgroundTasks) -> dict[str, Any]:
+    """Exécute une action systemctl. Si elle tue la gateway elle-même (stop/restart kua-gateway),
+    on planifie en tâche de fond → la réponse HTTP part AVANT que le process ne redémarre."""
+    if sysctl.self_affecting(service, action):
+        background.add_task(sysctl.systemctl, action, service, user)
+        return {
+            "status": "scheduled", "service": service, "action": action,
+            "note": "Redémarrage en cours — la santé revient au vert dans quelques secondes.",
+        }
+    res = sysctl.systemctl(action, service, user=user)
+    return {"status": "done", "service": service, "action": action, **res}
+
+
+@app.get("/internal/logs")
+async def internal_logs(request: Request) -> JSONResponse:
+    if (err := _internal_guard(request)) is not None:
+        return err
+    service = request.query_params.get("service", "")
+    try:
+        lines = int(request.query_params.get("lines", "200"))
+    except (TypeError, ValueError):
+        lines = 200
+    try:
+        res = sysctl.journal(service, lines, user=_audit_user(request))
+    except sysctl.ControlRefused as exc:
+        return JSONResponse(status_code=400, content={"status": "refused", "message": str(exc)})
+    return JSONResponse(content={"status": "ok", "service": service, **res})
+
+
+@app.post("/internal/control")
+async def internal_control(request: Request, background: BackgroundTasks) -> JSONResponse:
+    if (err := _internal_guard(request)) is not None:
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"status": "invalid_json"})
+    service = str((body or {}).get("service", ""))
+    action = str((body or {}).get("action", ""))
+    try:
+        out = _perform_control(action, service, _audit_user(request), background)
+    except sysctl.ControlRefused as exc:
+        return JSONResponse(status_code=400, content={"status": "refused", "message": str(exc)})
+    return JSONResponse(content=out)
+
+
+def _gather_debug_context() -> str:
+    """Contexte LECTURE SEULE pour l'assistant : /health + diagnostics + journaux courts."""
+    parts = ["== /health ==\n" + json.dumps(health(), default=str, indent=2)]
+    for d in sysctl.diagnostics():
+        parts.append(f"== {d['name']} (exit {d['exit_code']}) ==\n{d['output']}")
+    for svc in sysctl.ALLOWED_SERVICES:
+        parts.append(f"== journalctl {svc} (40) ==\n{sysctl.journal(svc, 40)['output']}")
+    return "\n\n".join(parts)
+
+
+@app.get("/internal/diagnostics")
+async def internal_diagnostics(request: Request) -> JSONResponse:
+    if (err := _internal_guard(request)) is not None:
+        return err
+    return JSONResponse(content={"status": "ok", "health": health(), "diagnostics": sysctl.diagnostics(_audit_user(request))})
+
+
+@app.post("/internal/debug/advise")
+async def internal_debug_advise(request: Request) -> JSONResponse:
+    if (err := _internal_guard(request)) is not None:
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    question = str((body or {}).get("question", "")).strip()
+    from app import debug_advisor  # noqa: PLC0415
+
+    ctx = await asyncio.get_event_loop().run_in_executor(None, _gather_debug_context)
+    res = await asyncio.get_event_loop().run_in_executor(None, debug_advisor.advise, question, ctx)
+    log_json("debug_advise", user=_audit_user(request), has_action=bool(res.get("proposed_action")))
+    return JSONResponse(content={"status": "ok", **res})
+
+
+@app.post("/internal/debug/act")
+async def internal_debug_act(request: Request, background: BackgroundTasks) -> JSONResponse:
+    """Exécute une action CONFIRMÉE par William, re-validée contre l'allowlist (defense-in-depth)."""
+    if (err := _internal_guard(request)) is not None:
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"status": "invalid_json"})
+    user = _audit_user(request)
+    act_type = str((body or {}).get("type", ""))
+    try:
+        if act_type == "restart_service":
+            out = _perform_control("restart", str(body.get("service", "")), user, background)
+        elif act_type == "reinstall_dep":
+            out = {"status": "done", **sysctl.reinstall_dep(str(body.get("key", "")), user=user)}
+        else:
+            return JSONResponse(status_code=400, content={"status": "refused", "message": f"type inconnu : {act_type!r}"})
+    except sysctl.ControlRefused as exc:
+        return JSONResponse(status_code=400, content={"status": "refused", "message": str(exc)})
+    return JSONResponse(content=out)
 
 
 @app.post("/hooks/sentry/{project_id}")

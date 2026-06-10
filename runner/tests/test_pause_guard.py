@@ -57,30 +57,23 @@ def _cleanup(pid: str) -> None:
 
 
 @requires_db
-def test_pause_blocks_claim_then_resume():
+def test_pause_blocks_claim():
+    """Déterministe (pas de course avec le worker live, déjà en pause via conftest) :
+    en pause, le claim ne sort RIEN et notre run reste 'queued' ; le flag round-trip."""
     pid, run_id = _seed()
     try:
         db.set_paused(True)
-        # ★ En pause : aucun run réclamé (global, atomique dans le claim SQL).
+        assert db.is_paused() is True
+        # ★ En pause : aucun run réclamé (court-circuit atomique dans le claim SQL).
         assert db.claim_queued_run() is None
-        # ★ Notre run reste 'queued' (intact).
+        # ★ Notre run reste 'queued' (non réclamé).
         assert db.get_run_context(run_id)["run_status"] == "queued"
-
+        # Le flag round-trip (le contraste « non-pausé → claimable » est couvert par tous
+        # les tests qui exécutent un run ; on évite ici une course au claim global).
         db.set_paused(False)
-        # ★ Reprise : le claim redevient actif. claim_queued_run est GLOBAL → sur la DB
-        # partagée il peut sortir un AUTRE run en file ; on le remet alors en file (aucun
-        # dégât durable). L'assertion clé : la reprise réactive bien le claim.
-        claimed = db.claim_queued_run()
-        assert claimed is not None
-        if str(claimed["id"]) != run_id:
-            with db.connect() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "UPDATE runs SET status='queued', started_at=NULL WHERE id=%s",
-                        (claimed["id"],),
-                    )
+        assert db.is_paused() is False
     finally:
-        db.set_paused(False)  # NE JAMAIS laisser la DB partagée en pause.
+        db.set_paused(True)  # garder la session en pause (le conftest reprend à la fin)
         _cleanup(pid)
 
 
