@@ -142,6 +142,10 @@ def test_sql_constants_are_valid_against_real_schema():
         (db.INSERT_THREAD_SQL, ("proj", _ZERO_UUID, "bugfix", "sujet", None)),
         (db.INSERT_RUN_SQL, (_ZERO_UUID, "goal")),
         (db.CLAIM_RUN_SQL, (list(db._ACTIVE_RUN_STATUSES),)),
+        (db.GET_RUN_CONTEXT_SQL, (_ZERO_UUID,)),
+        (db.POST_MESSAGE_SQL, (_ZERO_UUID, "system", None, "x", None)),
+        (db.SET_THREAD_STATUS_SQL, ("open", "open", "open", _ZERO_UUID)),
+        (db.RUNS_AWAITING_DECISION_SQL, None),
     ]
     with db.connect() as conn:
         for sql, params in plans:

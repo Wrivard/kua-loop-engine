@@ -134,3 +134,124 @@ def claim_queued_run() -> Optional[dict[str, Any]]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(CLAIM_RUN_SQL, (list(_ACTIVE_RUN_STATUSES),))
             return cur.fetchone()
+
+
+# --------------------------------------------------------------- Runner (doc 06) ---
+
+# Contexte complet d'un run (run → thread → project → loop) en une requête.
+GET_RUN_CONTEXT_SQL = """
+    SELECT
+      r.id AS run_id, r.status AS run_status, r.goal AS goal, r.thread_id,
+      t.facade AS facade, t.subject AS subject, t.project_id AS project_id,
+      t.loop_id AS loop_id, t.status AS thread_status,
+      p.name AS project_name, p.repo_url AS repo_url,
+      p.default_branch AS default_branch, p.is_engine AS is_engine,
+      l.autonomy AS autonomy, l.budget_usd AS budget_usd, l.model AS model,
+      l.timeout_min AS timeout_min, l.max_iterations AS max_iterations, l.config AS config
+    FROM runs r
+    JOIN threads t  ON t.id = r.thread_id
+    JOIN projects p ON p.id = t.project_id
+    LEFT JOIN loops l ON l.id = t.loop_id
+    WHERE r.id = %s
+"""
+
+POST_MESSAGE_SQL = (
+    "INSERT INTO messages (thread_id, role, author, content, run_id) "
+    "VALUES (%s, %s, %s, %s, %s) RETURNING id"
+)
+
+SET_THREAD_STATUS_SQL = """
+    UPDATE threads SET
+      status = %s,
+      last_activity_at = now(),
+      resolved_at = CASE WHEN %s = 'resolved' THEN now() ELSE resolved_at END,
+      archived_at = CASE WHEN %s = 'archived' THEN now() ELSE archived_at END
+    WHERE id = %s
+"""
+
+# Runs en attente de décision + la dernière approbation (watcher du Runner).
+RUNS_AWAITING_DECISION_SQL = """
+    SELECT r.id AS run_id, r.thread_id AS thread_id, r.goal AS goal,
+           a.decision AS decision, a.comment AS comment, a.decided_by AS decided_by
+    FROM runs r
+    JOIN LATERAL (
+        SELECT decision, comment, decided_by
+        FROM approvals WHERE run_id = r.id
+        ORDER BY decided_at DESC LIMIT 1
+    ) a ON true
+    WHERE r.status = 'awaiting_approval'
+"""
+
+# Colonnes du run que le Runner a le droit de mettre à jour (whitelist).
+_RUN_UPDATE_COLUMNS = frozenset(
+    {
+        "status", "branch", "pr_url", "preview_url", "cost_usd",
+        "iterations", "log_path", "summary", "started_at", "finished_at",
+    }
+)
+
+
+def get_run_context(run_id: str) -> Optional[dict[str, Any]]:
+    """Tout le contexte d'un run en une requête (run/thread/project/loop)."""
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(GET_RUN_CONTEXT_SQL, (run_id,))
+            return cur.fetchone()
+
+
+def update_run(run_id: str, **fields: Any) -> None:
+    """UPDATE runs ... (colonnes whitelistées seulement). No-op si rien à écrire."""
+    from psycopg import sql  # noqa: PLC0415
+
+    items = [(k, v) for k, v in fields.items() if k in _RUN_UPDATE_COLUMNS]
+    if not items:
+        return
+    assignments = sql.SQL(", ").join(
+        sql.SQL("{} = %s").format(sql.Identifier(k)) for k, _ in items
+    )
+    query = sql.SQL("UPDATE runs SET {} WHERE id = %s").format(assignments)
+    params = [v for _, v in items] + [run_id]
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+
+
+def add_run(thread_id: str, goal: str) -> str:
+    """Ajoute un run(queued) à un thread existant (ex. redo). Retourne l'id."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(INSERT_RUN_SQL, (thread_id, goal))
+            return str(cur.fetchone()[0])
+
+
+def post_message(
+    thread_id: str,
+    role: str,
+    content: Optional[str],
+    run_id: Optional[str] = None,
+    author: Optional[str] = None,
+) -> str:
+    """Insère un message dans un thread (run/agent/system/user). Retourne l'id."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(POST_MESSAGE_SQL, (thread_id, role, author, content, run_id))
+            return str(cur.fetchone()[0])
+
+
+def set_thread_status(thread_id: str, status: str) -> None:
+    """Met à jour le statut d'un thread (+ horodatages resolved/archived)."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(SET_THREAD_STATUS_SQL, (status, status, status, thread_id))
+
+
+def runs_awaiting_decision() -> list[dict[str, Any]]:
+    """Runs `awaiting_approval` ayant une approbation — avec la dernière décision."""
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(RUNS_AWAITING_DECISION_SQL)
+            return cur.fetchall()
