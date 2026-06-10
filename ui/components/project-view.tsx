@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import { ThreadRow } from "@/components/thread-row";
 import { EmptyState, ErrorState } from "@/components/empty-state";
 import { FacadeDot } from "@/components/facade-mark";
 import { AutonomyPopover } from "@/components/autonomy-popover";
 import { NewConversationDialog } from "@/components/new-conversation-dialog";
+import { ProjectSettingsDrawer } from "@/components/project-settings-drawer";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveQuery } from "@/lib/use-live-query";
 import {
@@ -136,7 +138,15 @@ export function ProjectView({ slug }: { slug: string }) {
             <span className="tabular-nums text-muted-foreground">{countByFacade.get(f) ?? 0}</span>
           </FilterChip>
         ))}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ProjectSettingsDrawer
+            projectId={project.id}
+            trigger={
+              <Button size="icon" variant="ghost" aria-label="Connecteurs / Skills / MCP">
+                <SlidersHorizontal className="h-4 w-4" />
+              </Button>
+            }
+          />
           <NewConversationDialog projectId={project.id} loops={loops} />
         </div>
       </div>

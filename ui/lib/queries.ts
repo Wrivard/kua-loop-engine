@@ -30,6 +30,9 @@ import type {
   MessageWithRun,
   Plan,
   Project,
+  ProjectConnector,
+  ProjectMcp,
+  ProjectSkill,
   RunRow,
   SidebarProject,
   ThreadListItem,
@@ -273,6 +276,67 @@ export async function setAppSetting(key: string, value: Record<string, unknown>)
 export async function updateLoopModel(loopId: string, model: string): Promise<void> {
   if (!isSupabaseConfigured) return;
   const { error } = await supabase.from("loops").update({ model }).eq("id", loopId);
+  if (error) throw error;
+}
+
+// --- Bindings par projet (connecteurs / skills / mcp) ---
+
+export async function getProjectConnectors(projectId: string): Promise<ProjectConnector[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("project_connectors")
+    .select("*")
+    .eq("project_id", projectId);
+  if (error) throw error;
+  return (data as ProjectConnector[]) ?? [];
+}
+
+export async function upsertProjectConnector(
+  projectId: string,
+  type: string,
+  patch: { enabled?: boolean; mode?: string; connection_id?: string | null; config?: Record<string, unknown> },
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from("project_connectors")
+    .upsert({ project_id: projectId, type, ...patch }, { onConflict: "project_id,type" });
+  if (error) throw error;
+}
+
+export async function getProjectSkills(projectId: string): Promise<ProjectSkill[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("project_skills")
+    .select("*")
+    .eq("project_id", projectId);
+  if (error) throw error;
+  return (data as ProjectSkill[]) ?? [];
+}
+
+export async function setProjectSkill(projectId: string, skill: string, enabled: boolean): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from("project_skills")
+    .upsert({ project_id: projectId, skill, enabled }, { onConflict: "project_id,skill" });
+  if (error) throw error;
+}
+
+export async function getProjectMcp(projectId: string): Promise<ProjectMcp[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.from("project_mcp").select("*").eq("project_id", projectId);
+  if (error) throw error;
+  return (data as ProjectMcp[]) ?? [];
+}
+
+export async function setProjectMcp(
+  projectId: string,
+  name: string,
+  patch: { enabled?: boolean; config?: Record<string, unknown> },
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from("project_mcp")
+    .upsert({ project_id: projectId, name, ...patch }, { onConflict: "project_id,name" });
   if (error) throw error;
 }
 

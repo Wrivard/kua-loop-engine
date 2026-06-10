@@ -182,6 +182,15 @@ export interface ProjectSkill {
   enabled: boolean;
 }
 
+export interface ProjectMcp {
+  id: string;
+  project_id: string;
+  name: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  secret_ref: string | null;
+}
+
 /** Loop enrichie du nom de projet (table des modèles, Settings). */
 export interface LoopWithProject extends Loop {
   project_name: string;
