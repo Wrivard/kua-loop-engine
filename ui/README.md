@@ -1,16 +1,39 @@
-# ui/ — UI kua-loop-engine (squelette S5)
+# ui/ — UI du moteur kua-loop-engine
 
-Liste des `runs` (jointure `threads`) en temps réel via Supabase Realtime.
-Design : `vercel_DESIGN.md` (racine) — Geist, monochrome, shadow-as-border ;
-couleurs de façade et pills de statut par docs/12-FRONTEND-UI.md.
+Next.js 14 (App Router) + TypeScript + Tailwind + composants shadcn-style.
+Esthétique Vercel/Geist (monochrome, flat). Trois surfaces (doc 12) : **Inbox** `/`,
+**Projet** `/p/[slug]`, **Conversation** `/c/[id]`. Données via Supabase
+(anon key + Realtime). Détails de build : [`BUILD-NOTES.md`](./BUILD-NOTES.md).
 
-## Lancer
+## Lancer en local
 ```bash
+cd ui
+cp .env.example .env.local   # puis renseigner les 2 variables (voir ci-dessous)
 npm install
-npm run dev   # http://localhost:3010
+npm run dev                  # http://localhost:3010
 ```
-Variables requises dans `.env.local` (voir `.env.example`).
+Sans variables, l'UI tourne en **mode preview** (données de démo `lib/seed.ts`, sans auth) —
+pratique pour explorer l'interface sans backend.
 
-## Statut
-Spike S5 (Phase 0). L'Inbox, les conversations et les approbations arrivent en Phase 1
-(docs/12, étapes 1→5) — avec shadcn/ui (d'où Tailwind 3.x ici).
+## Variables d'environnement (publiques uniquement)
+| Variable | Où la prendre |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase > Settings > API > clé **anon / publishable** |
+
+⚠️ **Jamais** de `service_role` ni de secret backend côté client : tout `NEXT_PUBLIC_*` est exposé
+au navigateur. Le token GitHub, etc. vivent dans le backend (`/srv/kua/.env`), pas ici.
+
+## Déployer sur Vercel
+1. Importer le repo GitHub dans Vercel.
+2. **Root Directory = `ui/`** (réglage Vercel obligatoire — le repo est un monorepo ; le backend
+   Python est ignoré par Vercel grâce à ce réglage). Framework détecté : **Next.js**.
+3. Build = `npm run build` (auto). Node ≥ 20 (épinglé via `engines` dans `package.json`).
+4. **Environment Variables** (Production + Preview) : `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+5. Deploy. Sans les variables, le déploiement reste fonctionnel en mode preview (démo).
+
+## Auth & comptes
+Middleware `@supabase/ssr` : protège toutes les routes hors `/login` **quand** Supabase est configuré
+(sinon bypass = preview). Les 2 comptes (William + partner) se créent dans
+Supabase > Authentication > Users > Add user.
