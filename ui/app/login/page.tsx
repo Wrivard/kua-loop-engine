@@ -40,7 +40,7 @@ function LoginForm() {
       <div className="w-full max-w-sm">
         {/* Wordmark Küa — point violet (couleur de marque, façade Démo). */}
         <div className="mb-8 flex items-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#7F77DD" }} />
+          <span className="inline-block h-2 w-2 rounded-full bg-brand" />
           <span className="text-sm font-medium tracking-tight">Küa · Loops</span>
         </div>
 

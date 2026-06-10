@@ -6,6 +6,7 @@ import { getAllLoops, getAppSetting, setAppSetting, updateLoopModel } from "@/li
 import { MODEL_OPTIONS } from "@/lib/connectors";
 import { facadeLabel } from "@/lib/facade";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LoopWithProject } from "@/lib/types";
 
 function ModelSelect({
@@ -15,19 +16,20 @@ function ModelSelect({
   value: string;
   onChange: (m: string) => void;
 }) {
+  const options = MODEL_OPTIONS.includes(value) ? MODEL_OPTIONS : [value, ...MODEL_OPTIONS];
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-md border border-input bg-transparent px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-    >
-      {MODEL_OPTIONS.map((m) => (
-        <option key={m} value={m}>
-          {m}
-        </option>
-      ))}
-      {!MODEL_OPTIONS.includes(value) && <option value={value}>{value}</option>}
-    </select>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-32">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((m) => (
+          <SelectItem key={m} value={m}>
+            {m}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

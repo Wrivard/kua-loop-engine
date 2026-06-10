@@ -61,7 +61,7 @@ Pas de page settings globale ; pas d'éditeur de loops.yaml ; pas de graphiques 
 William ET le partner ont les **mêmes droits** : voir, intake (composer + Discord), parler aux agents, et **approuver**. `approvals.decided_by` trace qui a tranché (audit), aucune restriction entre les deux.
 
 ## Design — inspiration Vercel
-- Typo Geist Sans + Geist Mono. Monochrome : blanc `#fff` / noir `#0a0a0a`, dark mode obligatoire, bordures 1px. La couleur n'existe que pour (a) l'identité des façades — liserés/points — et (b) le statut des runs (pills sémantiques).
+- Typo Geist Sans + Geist Mono. Monochrome : blanc `#fff` / noir `#0a0a0a`, dark mode obligatoire, bordures 1px. La couleur n'existe que pour (a) l'identité des façades — liserés/points — ; (b) le statut des runs (pills sémantiques) ; et (c) **un accent de marque** unique — vert Küa `#00e57a`, token `--brand`/`--brand-foreground` dans `ui/app/globals.css` (**source de vérité**) — utilisé en *highlight seulement* (onglet/segment actif, bouton primaire, toggle ON, focus-ring, item de nav actif, point du wordmark). DISTINCT des 5 couleurs de façade. Pas d'aplats massifs. L'accent est surchargeable par device (Réglages → Apparence → Accent : vert/violet), 100 % local.
 - Flat : pas d'ombres ni gradients. Radius 8–12px. Densité faible, beaucoup de blanc.
 - Bouton primaire = noir plein (texte inversé), look Vercel ; secondaire = contour.
 - Stack : Next.js 14 + Tailwind + shadcn/ui. Realtime via Supabase Realtime (ou SSE depuis l'API du VPS).

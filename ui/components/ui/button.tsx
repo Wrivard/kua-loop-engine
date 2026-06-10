@@ -8,8 +8,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Bouton primaire = noir plein / texte inversé (look Vercel).
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        // Bouton primaire = accent de marque (highlight). Action principale par écran.
+        default: "bg-brand text-brand-foreground hover:bg-brand/90",
+        // Variante monochrome (quand l'accent n'est pas souhaité).
+        mono: "bg-primary text-primary-foreground hover:bg-primary/90",
         outline:
           "border border-border bg-background hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",

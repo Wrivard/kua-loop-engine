@@ -24,7 +24,7 @@ export function Switch({
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-        checked ? "border-foreground bg-foreground" : "border-border bg-muted",
+        checked ? "border-brand bg-brand" : "border-border bg-muted",
         disabled && "cursor-not-allowed opacity-50",
       )}
     >

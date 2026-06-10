@@ -22,7 +22,12 @@
     --accent-foreground: 0 0% 9%;
     --border: 0 0% 92%;
     --input: 0 0% 90%;
-    --ring: 0 0% 65%;
+    /* Accent de MARQUE Küa (vert #00e57a) — distinct des 5 couleurs de façade.
+       Base monochrome ; l'accent = highlight seulement. Overridable par device
+       (Réglages → Apparence → Accent) via documentElement.style. */
+    --brand: 152 100% 45%;
+    --brand-foreground: 0 0% 4%;
+    --ring: var(--brand);
     --radius: 0.625rem;
   }
 
@@ -43,7 +48,9 @@
     --accent-foreground: 0 0% 93%;
     --border: 0 0% 16%;
     --input: 0 0% 20%;
-    --ring: 0 0% 40%;
+    --brand: 152 100% 45%;
+    --brand-foreground: 0 0% 4%;
+    --ring: var(--brand);
   }
 
   * {

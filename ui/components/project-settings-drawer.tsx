@@ -11,9 +11,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ConnStatus, ConnectorIcon, ScopeBadge } from "@/components/connector-bits";
 import { useLiveQuery } from "@/lib/use-live-query";
 import {
   getAppConnections,
@@ -24,7 +24,7 @@ import {
   setProjectSkill,
   upsertProjectConnector,
 } from "@/lib/queries";
-import { CONNECTOR_TYPES, SKILLS, CONNECTION_STATUS_LABEL } from "@/lib/connectors";
+import { CONNECTOR_TYPES, SKILLS } from "@/lib/connectors";
 import type { Connection, ProjectConnector, ProjectMcp, ProjectSkill } from "@/lib/types";
 
 type Data = {
@@ -32,12 +32,6 @@ type Data = {
   skills: ProjectSkill[];
   mcp: ProjectMcp[];
   appConns: Connection[];
-};
-
-const STATUS_CLASS: Record<string, string> = {
-  ok: "bg-emerald-500/10 text-emerald-500",
-  error: "bg-red-500/10 text-red-500",
-  untested: "bg-muted text-muted-foreground",
 };
 
 export function ProjectSettingsDrawer({
@@ -120,10 +114,9 @@ export function ProjectSettingsDrawer({
                 <div key={t.type} className="rounded-lg border border-border p-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
+                      <ConnectorIcon />
                       <span className="text-sm font-medium">{t.label}</span>
-                      <Badge className="bg-muted text-muted-foreground">
-                        {t.shareable ? "partageable" : "par projet"}
-                      </Badge>
+                      <ScopeBadge shareable={t.shareable} />
                     </div>
                     <Switch
                       checked={enabled}
@@ -134,9 +127,7 @@ export function ProjectSettingsDrawer({
                   {enabled && t.shareable && (
                     <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       hérite la connexion app
-                      <Badge className={STATUS_CLASS[app?.status ?? "untested"]}>
-                        {CONNECTION_STATUS_LABEL[app?.status ?? "untested"]}
-                      </Badge>
+                      <ConnStatus status={app?.status} />
                     </p>
                   )}
                   {enabled && !t.shareable && (
@@ -193,7 +184,7 @@ export function ProjectSettingsDrawer({
             <div className="flex items-end gap-2">
               <Input value={mcpName} onChange={(e) => setMcpName(e.target.value)} placeholder="nom" aria-label="Nom du MCP" />
               <Input value={mcpUrl} onChange={(e) => setMcpUrl(e.target.value)} placeholder="https://…/mcp" aria-label="URL du MCP" />
-              <Button size="sm" variant="outline" onClick={() => void addMcp()} disabled={!mcpName.trim() || !mcpUrl.trim()}>
+              <Button size="sm" onClick={() => void addMcp()} disabled={!mcpName.trim() || !mcpUrl.trim()}>
                 Ajouter
               </Button>
             </div>

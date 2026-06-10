@@ -43,6 +43,11 @@ const config: Config = {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
         },
+        // Accent de marque Küa (highlight seulement, distinct des façades).
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          foreground: "hsl(var(--brand-foreground))",
+        },
         // Identité des façades (doc 12) — usage chromatique réservé.
         facade: {
           bugfix: "#D85A30",

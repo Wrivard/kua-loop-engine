@@ -57,7 +57,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         onClick={onNavigate}
         className="flex items-center gap-2 px-4 py-4 text-sm font-medium tracking-tight"
       >
-        <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#7F77DD" }} />
+        <span className="inline-block h-2 w-2 rounded-full bg-brand" />
         Küa · Loops
       </Link>
 
@@ -67,7 +67,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
-            isInbox ? "bg-accent font-medium" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+            isInbox ? "bg-brand/10 font-medium text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
           )}
         >
           <Inbox className="h-4 w-4" />
@@ -102,7 +102,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                 className={cn(
                   "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
                   active
-                    ? "bg-accent font-medium"
+                    ? "bg-brand/10 font-medium text-foreground"
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                 )}
               >
@@ -129,7 +129,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
             pathname === "/settings"
-              ? "bg-accent font-medium"
+              ? "bg-brand/10 font-medium text-foreground"
               : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
           )}
         >
@@ -189,7 +189,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DialogContent>
           </Dialog>
           <span className="flex items-center gap-2 text-sm font-medium tracking-tight">
-            <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#7F77DD" }} />
+            <span className="inline-block h-2 w-2 rounded-full bg-brand" />
             Küa · Loops
           </span>
         </header>
