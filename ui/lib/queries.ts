@@ -263,6 +263,8 @@ export async function createThread(
   await supabase
     .from("messages")
     .insert({ thread_id: threadId, role: "user", content: firstMessage, author });
+  // Déclenche un vrai run : le Runner poll `runs` (status=queued) et exécute.
+  await supabase.from("runs").insert({ thread_id: threadId, status: "queued", goal: firstMessage });
   return threadId;
 }
 
