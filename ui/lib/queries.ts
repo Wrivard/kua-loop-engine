@@ -2,7 +2,18 @@
 // components) qui s'abonnent en plus au Realtime via useLiveQuery.
 // Contexte borné (CLAUDE.md) : on ne charge jamais l'historique des autres threads.
 
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  seedInboxGroups,
+  seedLoopsByProject,
+  seedMonthCost,
+  seedProjectById,
+  seedProjects,
+  seedRunsByThread,
+  seedThread,
+  seedThreadMessages,
+  seedThreadsByProject,
+} from "@/lib/seed";
 import type {
   ApprovalDecision,
   InboxGroup,
@@ -44,18 +55,21 @@ function toListItem(row: ThreadRow & { runs?: EmbeddedRun[] }): ThreadListItem {
 }
 
 export async function getProjects(): Promise<Project[]> {
+  if (!isSupabaseConfigured) return seedProjects();
   const { data, error } = await supabase.from("projects").select("*").order("name");
   if (error) throw error;
   return (data as Project[]) ?? [];
 }
 
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
+  if (!isSupabaseConfigured) return seedProjectById(slug);
   const { data, error } = await supabase.from("projects").select("*").eq("id", slug).maybeSingle();
   if (error) throw error;
   return (data as Project) ?? null;
 }
 
 export async function getLoopsByProject(projectId: string): Promise<Loop[]> {
+  if (!isSupabaseConfigured) return seedLoopsByProject(projectId);
   const { data, error } = await supabase
     .from("loops")
     .select("*")
@@ -66,6 +80,7 @@ export async function getLoopsByProject(projectId: string): Promise<Loop[]> {
 
 /** Inbox : toutes les conversations à confirmer, groupées par projet (doc 12). */
 export async function getInboxGroups(): Promise<InboxGroup[]> {
+  if (!isSupabaseConfigured) return seedInboxGroups();
   const { data, error } = await supabase
     .from("threads")
     .select(
@@ -95,6 +110,7 @@ export async function getInboxGroups(): Promise<InboxGroup[]> {
 
 /** Toutes les conversations d'un projet (l'appelant sépare actives / archivées). */
 export async function getThreadsByProject(projectId: string): Promise<ThreadListItem[]> {
+  if (!isSupabaseConfigured) return seedThreadsByProject(projectId);
   const { data, error } = await supabase
     .from("threads")
     .select("*, runs(id,status,cost_usd,pr_url,preview_url,summary,created_at)")
@@ -105,6 +121,7 @@ export async function getThreadsByProject(projectId: string): Promise<ThreadList
 }
 
 export async function getThread(threadId: string): Promise<ThreadRow | null> {
+  if (!isSupabaseConfigured) return seedThread(threadId);
   const { data, error } = await supabase
     .from("threads")
     .select("*")
@@ -116,6 +133,7 @@ export async function getThread(threadId: string): Promise<ThreadRow | null> {
 
 /** Messages d'UNE conversation, run joint si role = "run", ordre chronologique. */
 export async function getThreadMessages(threadId: string): Promise<MessageWithRun[]> {
+  if (!isSupabaseConfigured) return seedThreadMessages(threadId);
   const { data, error } = await supabase
     .from("messages")
     .select("*, run:runs(*)")
@@ -127,6 +145,7 @@ export async function getThreadMessages(threadId: string): Promise<MessageWithRu
 
 /** Runs bruts d'une conversation (fallback si pas encore de messages role=run). */
 export async function getRunsByThread(threadId: string): Promise<RunRow[]> {
+  if (!isSupabaseConfigured) return seedRunsByThread(threadId);
   const { data, error } = await supabase
     .from("runs")
     .select("*")
@@ -138,6 +157,7 @@ export async function getRunsByThread(threadId: string): Promise<RunRow[]> {
 
 /** Coût du mois courant pour un projet (somme runs.cost_usd des threads du projet). */
 export async function getMonthCost(projectId: string): Promise<number> {
+  if (!isSupabaseConfigured) return seedMonthCost(projectId);
   const start = new Date();
   const monthStart = new Date(start.getFullYear(), start.getMonth(), 1).toISOString();
   const { data, error } = await supabase
@@ -159,6 +179,7 @@ export async function insertApproval(
   decidedBy: string,
   comment?: string,
 ): Promise<void> {
+  if (!isSupabaseConfigured) return; // preview : no-op (l'UI met à jour en optimiste)
   const { error } = await supabase
     .from("approvals")
     .insert({ run_id: runId, decision, decided_by: decidedBy, comment: comment ?? null });
@@ -172,6 +193,7 @@ export async function insertMessage(
   content: string,
   author?: string,
 ): Promise<void> {
+  if (!isSupabaseConfigured) return; // preview : no-op (l'UI met à jour en optimiste)
   const { error } = await supabase
     .from("messages")
     .insert({ thread_id: threadId, role, content, author: author ?? null });
