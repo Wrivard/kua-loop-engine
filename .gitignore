@@ -20,6 +20,7 @@ node_modules/
 .next/
 out/
 dist/
+*.tsbuildinfo
 
 # Claude Code local
 .claude/settings.local.json

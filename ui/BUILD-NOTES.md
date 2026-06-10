@@ -41,4 +41,17 @@ L'URL Supabase est connue ; l'**anon key** doit être fournie par William (cf. Q
 - **RLS** : désactivé côté DB. Tant qu'il l'est, l'anon key lit/écrit tout. À durcir avant prod (hors scope UI).
 
 ## État par écran
-(rempli au fil des milestones — voir bas du fichier)
+Légende : ✅ FAIT · 🟡 PARTIEL · ⬜ À FAIRE
+
+| Bloc | État | Détail |
+|------|------|--------|
+| **Setup** (M1) | ✅ FAIT | Next 14 App Router + TS strict + Tailwind tokens (CSS vars) + shadcn manuel (button/card/badge/skeleton/input/textarea/dialog/popover) + Geist + dark mode + client Supabase résilient. `build` + `lint` OK. |
+| **Couche données** (M2) | ✅ FAIT | `lib/types.ts` (miroir des 7 tables), `lib/facade.ts` (couleurs/labels/icônes + pills statut), `lib/queries.ts` (projets, inbox, threads, messages+run, coût mois, écritures approval/message), `lib/use-live-query.ts` (refetch sur Realtime). Pas encore branché sur un écran. |
+| **Auth** (M3) | ⬜ À FAIRE | Supabase Auth email/password, 2 comptes, middleware `@supabase/ssr` protégeant toutes les routes. |
+| **Inbox** `/` (M4) | ⬜ À FAIRE | Conversations à confirmer, groupées par projet, action inline Oui/Refaire, mobile-first, état vide « Rien à confirmer ». |
+| **Projet** `/p/[slug]` (M5) | ⬜ À FAIRE | Liste des conversations, filtres façade (couleur+compte) + « Nouvelle », Archivées repliables, header coût du mois. |
+| **Conversation** (M6) | ⬜ À FAIRE | Chat user/agent + cartes run (Demandé/Fait, avant-après, Oui/Refaire), composer → agent, liseré façade, pill statut. |
+| **Actions** (M7) | ⬜ À FAIRE | Oui/Refaire → `approvals` (decided_by = user courant), mises à jour live Realtime. |
+| **Polish** (M8) | ⬜ À FAIRE | États vides/chargement/erreur, responsive, accessibilité, BUILD-NOTES final. |
+
+> Artefacts hors-UI repérés au checkpoint : `ui/install.cmd` (bootstrap Claude Code Windows, tombé là par erreur — **non commité**, à supprimer) ; `tsconfig.tsbuildinfo` ajouté au `.gitignore`.
