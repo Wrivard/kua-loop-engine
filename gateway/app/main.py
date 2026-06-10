@@ -11,15 +11,19 @@ and run.goal — as plain text.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
+import os
+import select
+import signal
 from typing import Any, Optional
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
-from app import db
+from app import bridge_auth, db, mcp_bridge
 from app.config import get_settings
 
 app = FastAPI(title="kua-loop-engine Trigger Gateway", version="0.1.0-s4")
@@ -87,6 +91,118 @@ def extract_sentry_fields(payload: Any) -> dict[str, Optional[str]]:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# ----------------------------------------------------- Bridge MCP (wizard) ---
+# WS authentifié → PTY RESTREINT (allowlist `claude mcp …` + `kua connector …`).
+# Secret long-terme côté serveur (BRIDGE_SECRET) ; le navigateur n'a qu'un token court.
+
+
+def _read_pty(master_fd: int) -> Optional[str]:
+    """Lecture non-bloquante d'un chunk du PTY. None = EOF/fermé ; "" = rien pour l'instant."""
+    ready, _, _ = select.select([master_fd], [], [], 0.1)
+    if not ready:
+        return ""
+    try:
+        data = os.read(master_fd, 4096)
+    except OSError:
+        return None
+    return data.decode(errors="replace") if data else None
+
+
+async def _stream_pty(ws: WebSocket, argv: list[str]) -> None:
+    loop = asyncio.get_event_loop()
+    pid, master = mcp_bridge._spawn(argv)
+    stop = asyncio.Event()
+
+    async def pump_input() -> None:
+        try:
+            while not stop.is_set():
+                m = await ws.receive_json()
+                if m.get("type") == "input":
+                    os.write(master, str(m.get("data", "")).encode())
+                elif m.get("type") == "cancel":
+                    break
+        except Exception:
+            pass
+
+    input_task = asyncio.create_task(pump_input())
+    exit_code: Optional[int] = None
+    try:
+        while True:
+            chunk = await loop.run_in_executor(None, _read_pty, master)
+            if chunk is None:
+                break
+            if chunk:
+                await ws.send_json({"type": "output", "data": chunk})
+            wpid, wstatus = os.waitpid(pid, os.WNOHANG)
+            if wpid != 0:
+                exit_code = os.waitstatus_to_exitcode(wstatus)
+                final = await loop.run_in_executor(None, _read_pty, master)
+                if final:
+                    await ws.send_json({"type": "output", "data": final})
+                break
+    finally:
+        stop.set()
+        input_task.cancel()
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            os.close(master)
+        except OSError:
+            pass
+        if exit_code is None:
+            try:
+                _, status = os.waitpid(pid, 0)
+                exit_code = os.waitstatus_to_exitcode(status)
+            except ChildProcessError:
+                exit_code = 0
+    await ws.send_json({"type": "exit", "code": exit_code})
+
+
+@app.websocket("/mcp-bridge")
+async def mcp_bridge_ws(ws: WebSocket) -> None:
+    await ws.accept()
+    settings = get_settings()
+    # 1) Auth OBLIGATOIRE : 1er message = { token }.
+    try:
+        hello = await ws.receive_json()
+    except Exception:
+        await ws.close(code=4401)
+        return
+    user = bridge_auth.verify(settings.bridge_secret, (hello or {}).get("token"))
+    if not user:
+        try:
+            await ws.send_json({"type": "error", "message": "non authentifié"})
+        finally:
+            await ws.close(code=4401)
+        return
+    await ws.send_json({"type": "ready", "user": user})
+
+    # 2) Boucle commandes — allowlist STRICTE avant toute exécution.
+    while True:
+        try:
+            msg = await ws.receive_json()
+        except Exception:
+            break
+        if msg.get("type") == "guide":
+            from app import mcp_guide
+
+            text = await asyncio.get_event_loop().run_in_executor(
+                None, mcp_guide.suggest_mcp, str(msg.get("query", ""))
+            )
+            await ws.send_json({"type": "guidance", "text": text})
+            continue
+        if msg.get("type") != "run":
+            continue
+        try:
+            argv = mcp_bridge.parse_and_check(str(msg.get("command", "")), user=user)
+        except mcp_bridge.CommandRefused as exc:
+            await ws.send_json({"type": "refused", "message": str(exc)})
+            continue
+        await _stream_pty(ws, argv)
 
 
 @app.post("/hooks/sentry/{project_id}")

@@ -1,0 +1,27 @@
+# Bridge MCP (FastAPI/WebSocket) — Partie C wizard MCP.
+# Template — copié dans /etc/systemd/system/ mais PAS activé par l'agent.
+# Activation (sudo, AVEC William) : sudo systemctl enable --now kua-mcp-bridge
+#
+# Instance DÉDIÉE de l'app gateway (même code) sur le port 8001 → isole le process
+# qui spawn des PTY restreints (allowlist `claude mcp …`) du gateway de webhooks (8000).
+# Tourne en kua-engine (JAMAIS root). Requiert BRIDGE_SECRET dans /srv/kua/.env.
+[Unit]
+Description=kua-loop-engine MCP bridge (WebSocket, PTY restreint)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kua-engine
+Group=kua-engine
+WorkingDirectory=/home/kua-engine/kua-loop-engine/gateway
+EnvironmentFile=/srv/kua/.env
+ExecStart=/home/kua-engine/kua-loop-engine/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kua-mcp-bridge
+
+[Install]
+WantedBy=multi-user.target

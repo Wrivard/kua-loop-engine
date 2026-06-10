@@ -22,6 +22,7 @@ class Settings:
     supabase_url: str
     supabase_key: str
     sentry_webhook_secret: str
+    bridge_secret: str  # secret long-terme du bridge MCP (vide = bridge désactivé)
 
 
 @lru_cache(maxsize=1)
@@ -36,4 +37,5 @@ def get_settings() -> Settings:
         supabase_url=os.environ["SUPABASE_URL"],
         supabase_key=os.environ["SUPABASE_KEY"],
         sentry_webhook_secret=os.environ["SENTRY_WEBHOOK_SECRET"],
+        bridge_secret=os.environ.get("BRIDGE_SECRET", ""),
     )

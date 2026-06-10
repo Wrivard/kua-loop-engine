@@ -14,6 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConnStatus, ConnectorIcon, ScopeBadge } from "@/components/connector-bits";
+import { McpWizard } from "@/components/mcp-wizard";
+import { Plus } from "lucide-react";
 import { useLiveQuery } from "@/lib/use-live-query";
 import {
   getAppConnections,
@@ -160,7 +162,19 @@ export function ProjectSettingsDrawer({
 
           {/* MCP */}
           <section className="space-y-2">
-            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Serveurs MCP</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Serveurs MCP</h3>
+              <McpWizard
+                scope="project"
+                projectId={projectId}
+                trigger={
+                  <Button size="sm" variant="outline">
+                    <Plus className="h-3.5 w-3.5" />
+                    Guidé
+                  </Button>
+                }
+              />
+            </div>
             <div className="space-y-1">
               {(data?.mcp ?? []).map((m) => (
                 <div key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">

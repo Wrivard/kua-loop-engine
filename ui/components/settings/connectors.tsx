@@ -4,6 +4,9 @@ import { useLiveQuery } from "@/lib/use-live-query";
 import { getAppConnections } from "@/lib/queries";
 import { CONNECTOR_TYPES } from "@/lib/connectors";
 import { ConnStatus, ConnectorIcon, KindBadge, ScopeBadge } from "@/components/connector-bits";
+import { McpWizard } from "@/components/mcp-wizard";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
 import type { Connection } from "@/lib/types";
 
@@ -13,10 +16,20 @@ export function ConnectorsSettings() {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Connexions au niveau <strong>APP</strong> (partagées entre projets). Le secret vit sur le VPS
-        (<code className="font-mono text-xs">/srv/kua/secrets/</code>, chmod 600) — jamais en base, jamais ici.
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          Connexions au niveau <strong>APP</strong> (partagées). Secret sur le VPS, jamais en base ni ici.
+        </p>
+        <McpWizard
+          scope="app"
+          trigger={
+            <Button size="sm">
+              <Plus className="h-4 w-4" />
+              Ajouter MCP
+            </Button>
+          }
+        />
+      </div>
       <div className="space-y-2">
         {CONNECTOR_TYPES.map((t) => {
           const c = byType.get(t.type);

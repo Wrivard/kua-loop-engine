@@ -132,6 +132,35 @@ de l'exécuteur qui retire déjà les secrets backend).
   cette greffe encadrée par tests.
 - ✅ **Validateurs supabase + mcp** (joignabilité) ajoutés.
 
+## Bridge MCP (wizard « + Ajouter MCP ») — Partie C
+Installer un MCP comme dans le terminal claude : Claude guide, donne les URL d'auth, exécute —
+le tout branché sur le VPS.
+
+**Sécurité (non-négociable, testée)** :
+- **Allowlist STRICTE** (`gateway/app/mcp_bridge.py`) : seulement `claude mcp {add,list,remove,get}`
+  et `kua connector {set,test,list}`. Tout le reste REFUSÉ avant exécution (pas de shell libre, pas
+  de `rm`/`curl`). `shlex` + argv exécuté direct (jamais `shell=True`).
+- **kua-engine** (jamais root) — imposé par le systemd unit. Chaque commande **loggée** (audit JSON).
+- **WS authentifié obligatoire** : 1er message = token court-terme (HMAC `BRIDGE_SECRET`, exp ~5 min)
+  émis par la route Next `/api/mcp-bridge/token` (authentifiée par le login Supabase). Le **secret
+  long-terme reste côté serveur** (jamais NEXT_PUBLIC, jamais dans le navigateur).
+- Secrets jamais ré-affichés (le bridge ne lit pas les fichiers de secrets).
+
+**Réel (vérifié en local, 92 tests)** : allowlist (`claude mcp list` s'exécute / hors-allowlist refusé),
+tokens (round-trip/exp/tamper), WS (auth rejetée / commande refusée). Guidage `claude -p` advisory
+(plan Max, **aucune clé API**). UI : terminal `McpWizard` (stream, URL cliquables, saisie OAuth) dans
+Settings → Connecteurs (scope app) ET le drawer projet (scope projet).
+
+**Bring-live (À FAIRE avec William — fichiers prêts, RIEN activé)** :
+1. **DNS** : `A engine.kua.quebec → IP du VPS`.
+2. **Caddy + systemd** (sudo) : `deploy/Caddyfile` (bloc `engine.kua.quebec` → `127.0.0.1:8001`) +
+   `deploy/kua-mcp-bridge.service` → `sudo systemctl enable --now kua-mcp-bridge` ; recharger Caddy.
+   (Ports 80/443 ouverts pour le TLS Let's Encrypt.)
+3. **Secrets** : `BRIDGE_SECRET=<aléatoire long>` dans `/srv/kua/.env` (gateway + bridge) ; sur **Vercel** :
+   `NEXT_PUBLIC_BRIDGE_URL=wss://engine.kua.quebec/mcp-bridge` + `BRIDGE_SECRET` (server-side, PAS public).
+4. **1er install MCP réel** (OAuth) ensemble : ouvrir le wizard → « Guide » → lancer `claude mcp add …`
+   → coller le code OAuth → vérifier `claude mcp list`.
+
 ## État par écran
 Légende : ✅ FAIT · 🟡 PARTIEL · ⬜ À FAIRE
 
