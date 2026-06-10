@@ -92,6 +92,33 @@ def _validate_discord(secrets: dict, config: dict) -> "tuple[bool, str]":
     return _http_ok("https://discord.com/api/v10/users/@me", {"Authorization": f"Bot {token}"})
 
 
+def _validate_supabase(secrets: dict, config: dict) -> "tuple[bool, str]":
+    url = config.get("url")
+    key = secrets.get("service_role_key")
+    if not url or not key:
+        return False, "url + service_role_key requis"
+    return _http_ok(
+        f"{url.rstrip('/')}/rest/v1/",
+        {"apikey": key, "Authorization": f"Bearer {key}"},
+    )
+
+
+def _validate_mcp(secrets: dict, config: dict) -> "tuple[bool, str]":
+    url = config.get("url")
+    if not url:
+        return False, "url requise"
+    # MCP : on teste la JOIGNABILITÉ (un serveur MCP répond souvent 4xx/405 à un GET
+    # simple — ça prouve qu'il est là). Échec réseau = erreur.
+    req = urllib.request.Request(url, headers={"User-Agent": "kua-loop-engine"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            return True, f"HTTP {resp.status}"
+    except urllib.error.HTTPError as exc:
+        return True, f"HTTP {exc.code} (joignable)"
+    except Exception as exc:  # noqa: BLE001
+        return False, type(exc).__name__
+
+
 CONNECTOR_TYPES: dict[str, ConnectorType] = {
     "github": ConnectorType(
         "github", "GitHub", "api", True,
@@ -124,12 +151,12 @@ CONNECTOR_TYPES: dict[str, ConnectorType] = {
             AuthField("url", "Project URL", False),
             AuthField("db_url", "Connection string", True),
         ),
-        None,  # validation à brancher (note BUILD-NOTES)
+        _validate_supabase,
     ),
     "mcp": ConnectorType(
         "mcp", "MCP générique", "mcp", False,
         (AuthField("url", "URL du serveur MCP", False), AuthField("token", "Token (optionnel)", True)),
-        None,
+        _validate_mcp,
     ),
 }
 

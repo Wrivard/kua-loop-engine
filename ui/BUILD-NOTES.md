@@ -121,12 +121,16 @@ par le **Runner** hors du run (push/PR), jamais injecté dans l'env du `claude -
 de l'exécuteur qui retire déjà les secrets backend).
 
 ### Reste à faire
-1. **Saisie des secrets + bouton « Tester » depuis l'UI** : quand la gateway exposera un endpoint sécurisé
-   (le navigateur n'écrit jamais dans `/srv/kua/secrets/`).
-2. **Branchement de la composition dans le spawn** `claude -p` (prochaine loop) : charger `secret_refs`
-   (projet) dans l'env du run + écrire le `.mcp.json` composé dans le checkout + activer les skills.
-   La fonction est isolée et testée ; le cœur durci du Runner n'a PAS été touché.
-3. Validateurs supabase/mcp (actuellement `untested`).
+1. **Saisie des secrets + bouton « Tester » depuis l'UI** : via le **bridge MCP** (Partie C) / la gateway —
+   le navigateur n'écrit jamais dans `/srv/kua/secrets/`.
+
+### Fait depuis
+- ✅ **Composition branchée dans le spawn `claude -p`** (Partie B) : le run d'un projet écrit le `.mcp.json`
+  composé dans le checkout, ajoute ses skills au goal, et injecte ses **secrets projet** via `extra_env`
+  (mergés APRÈS `clean_env`, qui retire déjà les secrets backend). Prouvé : `SENTRY_AUTH_TOKEN` projet présent,
+  `GITHUB_TOKEN` app absent (`test_run_gets_project_secrets_not_app`). Cœur durci du Runner inchangé hormis
+  cette greffe encadrée par tests.
+- ✅ **Validateurs supabase + mcp** (joignabilité) ajoutés.
 
 ## État par écran
 Légende : ✅ FAIT · 🟡 PARTIEL · ⬜ À FAIRE

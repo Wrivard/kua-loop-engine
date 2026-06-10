@@ -52,3 +52,15 @@ def compose_project_context(project_id: str) -> dict[str, Any]:
         "skills": skills,
         "secret_refs": secret_refs,
     }
+
+
+def project_run_env(project_id: str) -> dict[str, str]:
+    """Variables d'env à injecter dans le run d'un projet : SECRETS PROJET UNIQUEMENT
+    (jamais app.env). Dérivé des secret_refs de compose_project_context (déjà filtrés
+    sur scope projet) ; double garde-fou ici."""
+    env: dict[str, str] = {}
+    for ref in compose_project_context(project_id)["secret_refs"]:
+        if not ref.startswith("project/"):
+            continue  # garde-fou : jamais les creds app
+        env.update(secrets.read_env_file(ref))
+    return env

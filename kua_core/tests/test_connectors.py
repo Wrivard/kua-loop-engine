@@ -38,3 +38,13 @@ def test_github_validator_rejects_missing_token():
     # Pas de réseau quand le secret manque.
     ok, detail = connectors.get_type("github").validate({}, {})
     assert ok is False and "token" in detail
+
+
+def test_supabase_validator_requires_fields():
+    ok, _ = connectors.get_type("supabase").validate({}, {})
+    assert ok is False
+
+
+def test_mcp_validator_requires_url():
+    ok, _ = connectors.get_type("mcp").validate({}, {})
+    assert ok is False

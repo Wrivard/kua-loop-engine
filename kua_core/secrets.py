@@ -72,3 +72,9 @@ def read_secret(scope: str, type_: str, project_id: str | None, fields: list[str
     """Relit les champs secrets d'un type (pour validation / composition)."""
     data = _read_file(_env_path(scope, project_id))
     return {f: data[_key(type_, f)] for f in fields if _key(type_, f) in data}
+
+
+def read_env_file(ref: str) -> dict[str, str]:
+    """Lit toutes les paires KEY=VALUE d'un fichier de secrets par ref relative
+    (ex. `project/<id>.env`). Utilisé par la composition pour l'env d'un run."""
+    return _read_file(secrets_dir() / ref)

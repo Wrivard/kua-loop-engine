@@ -6,6 +6,7 @@ même Protocol → le pipeline et le self-test sont identiques, seul l'exécuteu
 
 from __future__ import annotations
 
+import json
 import os
 import signal
 import subprocess
@@ -33,15 +34,27 @@ class ExecResult:
 
 
 class Executor(Protocol):
-    def run(self, cwd, goal: str, *, budget_usd, timeout_min: int, model: str) -> ExecResult: ...
+    def run(
+        self, cwd, goal: str, *, budget_usd, timeout_min: int, model: str,
+        extra_env: Optional[dict[str, str]] = None,
+    ) -> ExecResult: ...
 
 
 class ClaudeExecutor:
     """Spawn réel de `claude -p` (flags vérifiés S3). `timeout {min}m` borne le temps
     (exit 124), `--max-budget-usd` borne le coût."""
 
-    def run(self, cwd, goal: str, *, budget_usd, timeout_min: int = 30, model: str = "sonnet") -> ExecResult:
+    def run(
+        self, cwd, goal: str, *, budget_usd, timeout_min: int = 30, model: str = "sonnet",
+        extra_env: Optional[dict[str, str]] = None,
+    ) -> ExecResult:
         cmd = build_claude_command(goal, model=model, budget_usd=budget_usd, timeout_min=timeout_min)
+        # Env du run : base sans secrets backend (clean_env) PUIS secrets PROJET ajoutés
+        # par-dessus (extra_env). Les creds app ne peuvent pas entrer : clean_env les a
+        # retirés et extra_env ne contient QUE des secrets de scope projet (composition).
+        env = clean_env()
+        if extra_env:
+            env.update(extra_env)
         # Filet Python = backstop du `timeout` shell (marge > timeout + kill-after).
         py_timeout = timeout_min * 60 + 90
         try:
@@ -52,7 +65,7 @@ class ClaudeExecutor:
                 stderr=subprocess.PIPE,
                 text=True,
                 start_new_session=True,   # propre groupe → on peut tuer tout l'arbre
-                env=clean_env(),           # pas de secrets backend dans l'env de claude
+                env=env,
             )
         except FileNotFoundError:
             return ExecResult("failed", Decimal("0"), 0, "Binaire claude/timeout introuvable.", None, "")
@@ -90,8 +103,18 @@ class FakeExecutor:
         self.filename = filename
         self.content = content
         self.status = status  # forcer un échec (failed/budget_exceeded/timed_out) pour les tests
+        self.received_env: dict[str, str] = {}  # env reçu (vérif de la frontière de sécurité)
+        self.received_goal: str = ""
+        self.received_mcp: Optional[dict] = None  # .mcp.json composé vu dans le checkout
 
-    def run(self, cwd, goal: str, *, budget_usd=Decimal("0"), timeout_min: int = 30, model: str = "fake") -> ExecResult:
+    def run(
+        self, cwd, goal: str, *, budget_usd=Decimal("0"), timeout_min: int = 30, model: str = "fake",
+        extra_env: Optional[dict[str, str]] = None,
+    ) -> ExecResult:
+        self.received_env = dict(extra_env or {})
+        self.received_goal = goal
+        mcp_path = Path(cwd) / ".mcp.json"
+        self.received_mcp = json.loads(mcp_path.read_text(encoding="utf-8")) if mcp_path.exists() else None
         if self.status != "succeeded":
             return ExecResult(self.status, Decimal("0"), 0, f"(fake) {self.status}", "fake-session", "{}")
         p = Path(cwd) / self.filename

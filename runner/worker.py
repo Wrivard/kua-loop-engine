@@ -14,6 +14,7 @@ Garde-fous (revue adversariale) :
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -25,6 +26,7 @@ from typing import Any, Optional
 
 from agent.agent import handle_message as agent_decide
 from kua_core import db
+from kua_core.composition import compose_project_context, project_run_env
 from kua_core.config import get_settings
 from runner import gitops
 from runner.context import RunCtx
@@ -123,13 +125,23 @@ def process_run(
                 gitops.add_remote(checkout, "origin", ctx.repo_url)
         gitops.checkout_new_branch(checkout, target.work_branch)
 
-        # --- COMPILE ---
+        # --- COMPILE + COMPOSITION (connecteurs/skills/mcp DU PROJET) ---
         goal = compile_goal(ctx, checkout)
+        comp = compose_project_context(ctx.project_id)
+        if comp["mcp"]["mcpServers"]:
+            (checkout / ".mcp.json").write_text(json.dumps(comp["mcp"], indent=2), encoding="utf-8")
+        if comp["skills"]:
+            goal += "\n\nSKILLS ACTIVÉS POUR CE PROJET : " + ", ".join(comp["skills"])
+        # SECRETS PROJET UNIQUEMENT dans l'env du run (jamais app — garanti par la composition).
+        run_env = project_run_env(ctx.project_id)
 
         # --- RUN ---
         db.update_run(run_id, status="running")
         ex = executor or ClaudeExecutor()
-        result = ex.run(checkout, goal, budget_usd=ctx.budget_usd, timeout_min=ctx.timeout_min, model=ctx.model)
+        result = ex.run(
+            checkout, goal, budget_usd=ctx.budget_usd, timeout_min=ctx.timeout_min,
+            model=ctx.model, extra_env=run_env,
+        )
         log_path = _write_log(run_id, result.raw)
         db.update_run(run_id, cost_usd=result.cost_usd, iterations=result.iterations, summary=result.summary, log_path=log_path)
         if not result.ok:
