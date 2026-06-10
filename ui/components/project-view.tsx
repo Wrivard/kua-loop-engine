@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { ThreadRow } from "@/components/thread-row";
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState, ErrorState } from "@/components/empty-state";
 import { FacadeDot } from "@/components/facade-mark";
 import { AutonomyPopover } from "@/components/autonomy-popover";
 import { NewConversationDialog } from "@/components/new-conversation-dialog";
@@ -28,7 +28,7 @@ type ProjectData = {
 };
 
 export function ProjectView({ slug }: { slug: string }) {
-  const { data, loading } = useLiveQuery<ProjectData>(
+  const { data, loading, error, refetch } = useLiveQuery<ProjectData>(
     async () => {
       const [project, threads, loops, monthCost] = await Promise.all([
         getProjectBySlug(slug),
@@ -74,6 +74,14 @@ export function ProjectView({ slug }: { slug: string }) {
   const activeShown = active.filter(byFilter);
   const archivedShown = archived.filter(byFilter);
   const selectedLoop = filter !== "all" ? loopByFacade.get(filter) ?? null : null;
+
+  if (error && !data) {
+    return (
+      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <ErrorState message={error} onRetry={() => void refetch()} />
+      </div>
+    );
+  }
 
   if (loading && !data) {
     return (

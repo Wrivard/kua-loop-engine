@@ -16,6 +16,13 @@ npm run dev      # http://localhost:3010
 ```
 L'URL Supabase est connue ; l'**anon key** doit être fournie par William (cf. Questions).
 
+**Local branché sur le VRAI backend** : `ui/.env.local` est câblé (URL + clé *publishable*/anon récupérée
+via le MCP Supabase — clé publique par design, fichier gitignoré). L'UI parle donc au vrai Supabase
+en local (fini le mode démo). ⚠️ **Voir les données exige un compte connecté** : le middleware
+redirige vers `/login` et la RLS bloque `anon` (vérifié : `/` → 307 `/login`). Crée ton compte
+(Supabase → Auth → Users → Add user) puis connecte-toi. Sans `.env.local`, l'UI retombe en mode démo (seed).
+Les écrans affichent désormais un **état d'erreur + Réessayer** si une requête backend échoue.
+
 ## Déploiement Vercel
 - Connecter le repo GitHub à Vercel, **Root Directory = `ui/`**.
 - Variables d'env du projet Vercel : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.

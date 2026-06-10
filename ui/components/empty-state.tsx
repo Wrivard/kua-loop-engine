@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** État vide sobre et centré (Inbox zéro, projet sans conversation…). */
@@ -31,5 +33,32 @@ export function EmptyState({
       </div>
       {action}
     </div>
+  );
+}
+
+/** État d'erreur (échec d'une requête backend réel) avec « Réessayer ». */
+export function ErrorState({
+  message,
+  onRetry,
+  className,
+}: {
+  message?: string | null;
+  onRetry?: () => void;
+  className?: string;
+}) {
+  return (
+    <EmptyState
+      className={className}
+      icon={<AlertTriangle className="h-8 w-8" />}
+      title="Erreur de chargement"
+      description={message || "Impossible de charger les données. Réessaie."}
+      action={
+        onRetry ? (
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Réessayer
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }

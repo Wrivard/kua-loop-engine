@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Inbox as InboxIcon } from "lucide-react";
 import { ThreadRow } from "@/components/thread-row";
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState, ErrorState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveQuery } from "@/lib/use-live-query";
 import { getInboxGroups } from "@/lib/queries";
@@ -13,7 +13,7 @@ import type { InboxGroup } from "@/lib/types";
 /** Inbox (doc 12) : toutes les conversations à confirmer, groupées par projet.
  *  Décision inline → on retire la conversation (inbox zéro). Realtime réconcilie. */
 export function InboxView() {
-  const { data, loading } = useLiveQuery<InboxGroup[]>(
+  const { data, loading, error, refetch } = useLiveQuery<InboxGroup[]>(
     getInboxGroups,
     ["threads", "runs", "approvals", "projects"],
     [],
@@ -40,7 +40,9 @@ export function InboxView() {
         )}
       </div>
 
-      {loading && !data ? (
+      {error && !data ? (
+        <ErrorState message={error} onRetry={() => void refetch()} />
+      ) : loading && !data ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-16 w-full" />

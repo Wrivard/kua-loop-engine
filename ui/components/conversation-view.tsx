@@ -6,7 +6,7 @@ import { ChevronLeft } from "lucide-react";
 import { MessageBubble } from "@/components/message-bubble";
 import { RunCard } from "@/components/run-card";
 import { Composer } from "@/components/composer";
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState, ErrorState } from "@/components/empty-state";
 import { FacadeTag } from "@/components/facade-mark";
 import { StatusPill } from "@/components/status-pill";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +55,7 @@ type ConversationData = {
 };
 
 export function ConversationView({ threadId }: { threadId: string }) {
-  const { data, loading } = useLiveQuery<ConversationData>(
+  const { data, loading, error, refetch } = useLiveQuery<ConversationData>(
     async () => {
       const [thread, messages] = await Promise.all([
         getThread(threadId),
@@ -98,6 +98,14 @@ export function ConversationView({ threadId }: { threadId: string }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
+
+  if (error && !data) {
+    return (
+      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <ErrorState message={error} onRetry={() => void refetch()} />
+      </div>
+    );
+  }
 
   if (loading && !data) {
     return (
