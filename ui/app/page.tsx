@@ -1,15 +1,11 @@
-import { RunsList } from "@/components/runs-list";
-
+// Placeholder M2 — remplacé par l'écran Inbox au milestone M4.
 export default function Home() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <header className="mb-10">
-        <h1 className="text-3xl font-semibold tracking-[-1.28px]">Runs</h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Toutes les exécutions du moteur, en temps réel. Squelette S5.
-        </p>
-      </header>
-      <RunsList />
+    <main className="mx-auto max-w-2xl px-6 py-24 text-center">
+      <h1 className="text-lg font-medium tracking-tight">Küa — Loops</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Couche données prête. L&apos;Inbox arrive au prochain milestone.
+      </p>
     </main>
   );
 }
