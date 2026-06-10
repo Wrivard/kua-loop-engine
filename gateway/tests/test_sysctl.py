@@ -87,6 +87,15 @@ def test_parse_action_allowlist():
     assert debug_advisor.parse_action("ACTION: reinstall_dep requests") is None
     assert debug_advisor.parse_action("ACTION: none") is None
     assert debug_advisor.parse_action("rien d'actionnable") is None
+    # Durci : suffixe d'injection → la ligne ancrée ne matche pas (None).
+    assert debug_advisor.parse_action("ACTION: restart_service kua-gateway; rm -rf /") is None
+    # Multi-lignes : on prend la DERNIÈRE ligne ACTION valide.
+    assert debug_advisor.parse_action("ACTION: none\nACTION: restart_service kua-worker") == {
+        "type": "restart_service", "service": "kua-worker"
+    }
+    assert debug_advisor.parse_action("blabla\n  ACTION: restart_service kua-mcp-bridge  \nmerci") == {
+        "type": "restart_service", "service": "kua-mcp-bridge"
+    }
 
 
 # --- Endpoints (auth + dispatch + refus) -------------------------------------------
@@ -142,4 +151,25 @@ def test_logs_validates_service(monkeypatch, captured):
     assert ok.status_code == 200 and ok.json()["status"] == "ok"
     bad = client.get("/internal/logs?service=evil", headers=_AUTH)
     assert bad.status_code == 400
+    config.get_settings.cache_clear()
+
+
+# Tous les endpoints de contrôle exigent INTERNAL_TOKEN (anti-régression, surtout debug/act
+# qui EXÉCUTE). Sans bearer → 401 ; sans token configuré → 503. Aucun n'atteint claude.
+_INTERNAL = [("GET", "/internal/diagnostics"), ("POST", "/internal/debug/advise"), ("POST", "/internal/debug/act")]
+
+
+def test_internal_endpoints_require_bearer(monkeypatch, captured):
+    client = _client(monkeypatch)
+    for method, path in _INTERNAL:
+        r = client.request(method, path, json={} if method == "POST" else None)
+        assert r.status_code == 401, path
+    config.get_settings.cache_clear()
+
+
+def test_internal_endpoints_disabled_without_token(monkeypatch, captured):
+    client = _client(monkeypatch, token="")
+    for method, path in _INTERNAL:
+        r = client.request(method, path, json={} if method == "POST" else None, headers=_AUTH)
+        assert r.status_code == 503, path
     config.get_settings.cache_clear()

@@ -24,6 +24,8 @@ import subprocess
 import time
 from typing import Any
 
+from app import claude_cli
+
 # Allowlist : exécutable → sous-commande → set de sous-sous-commandes autorisées.
 ALLOWLIST: dict[str, dict[str, set[str]]] = {
     "claude": {"mcp": {"add", "list", "remove", "get"}},
@@ -85,7 +87,7 @@ def _spawn(argv: list[str]) -> tuple[int, int]:
         stderr=slave,
         start_new_session=True,
         close_fds=True,
-        env=os.environ.copy(),  # claude mcp a besoin de HOME/auth ; jamais shell=True
+        env=claude_cli.claude_env(),  # HOME/auth Max ; AUCUN secret backend ; jamais shell=True
     )
     os.close(slave)
     return proc.pid, master

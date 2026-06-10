@@ -13,11 +13,15 @@ User=kua-engine
 Group=kua-engine
 WorkingDirectory=/home/kua-engine/kua-loop-engine/gateway
 EnvironmentFile=/srv/kua/.env
+# PATH explicite : un service systemd a un PATH minimal qui EXCLUT ~/.local/bin (claude)
+# et le venv (kua) → le panneau Système (debug/wizard) ne les trouverait pas.
+Environment=PATH=/home/kua-engine/.local/bin:/home/kua-engine/kua-loop-engine/.venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/home/kua-engine/kua-loop-engine/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=3
-# Durcissement (kua-engine, jamais root ; pas d'élévation, FS protégé).
-NoNewPrivileges=true
+# Durcissement (kua-engine, jamais root ; FS protégé). PAS de NoNewPrivileges ICI :
+# le panneau Système lance `sudo -n systemctl …` (allowlist stricte) et NoNewPrivileges
+# ferait ignorer le setuid de sudo par le noyau → tout le contrôle échouerait.
 PrivateTmp=true
 ProtectSystem=full
 ProtectControlGroups=true

@@ -16,6 +16,8 @@ User=kua-engine
 Group=kua-engine
 WorkingDirectory=/home/kua-engine/kua-loop-engine/gateway
 EnvironmentFile=/srv/kua/.env
+# PATH explicite : trouver `claude` (~/.local/bin) et `kua` (venv) pour le wizard MCP.
+Environment=PATH=/home/kua-engine/.local/bin:/home/kua-engine/kua-loop-engine/.venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/home/kua-engine/kua-loop-engine/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
 Restart=always
 RestartSec=3

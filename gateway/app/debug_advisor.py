@@ -10,12 +10,11 @@ sortir. L'exécution réelle exige une confirmation explicite de William (endpoi
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 from typing import Any, Optional
 
-from app import sysctl
+from app import claude_cli, sysctl
 
 _PROMPT = """Tu es l'assistant de débogage du backend kua-loop-engine. Architecture : 3 services
 systemd (kua-gateway = API/health, kua-worker = boucle Runner claude -p, kua-mcp-bridge = WS),
@@ -35,15 +34,21 @@ Si UNE action sûre et réversible peut aider, termine par UNE SEULE ligne, EXAC
   ACTION: none
 N'invente AUCUNE autre action ni service."""
 
-_ACTION_RE = re.compile(r"ACTION:\s*(restart_service|reinstall_dep|none)(?:\s+(\S+))?", re.IGNORECASE)
+# Ligne ACTION ANCRÉE (^…$ multilignes) + argument à charset restreint → un suffixe
+# (« kua-gateway; rm -rf / ») ne matche pas. On prend la DERNIÈRE ligne ACTION valide.
+_ACTION_RE = re.compile(
+    r"^\s*ACTION:\s*(restart_service|reinstall_dep|none)(?:\s+([\w.\[\]\-]+))?\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 def parse_action(text: str) -> Optional[dict[str, Any]]:
     """Extrait l'action proposée du texte du modèle et la RE-VALIDE contre l'allowlist.
     Retourne None si absente, 'none', ou hors allowlist (le modèle ne peut rien forcer)."""
-    m = _ACTION_RE.search(text or "")
-    if not m:
+    matches = list(_ACTION_RE.finditer(text or ""))
+    if not matches:
         return None
+    m = matches[-1]
     kind = m.group(1).lower()
     arg = (m.group(2) or "").strip()
     if kind == "restart_service" and arg in sysctl.ALLOWED_SERVICES:
@@ -53,17 +58,19 @@ def parse_action(text: str) -> Optional[dict[str, Any]]:
     return None
 
 
-def advise(question: str, diagnostics_text: str, timeout: int = 120) -> dict[str, Any]:
-    """Conseille à partir des diagnostics. Retourne {explanation, proposed_action|None}."""
+def advise(question: str, diagnostics_text: str, timeout: int = 90) -> dict[str, Any]:
+    """Conseille à partir des diagnostics. Retourne {explanation, proposed_action|None}.
+    Timeout 90s < fetch proxy 110s < maxDuration Vercel 120s (marge). env SANS secret."""
     cmd = [
-        "claude", "-p", _PROMPT.format(question=question or "Diagnostique l'état du backend.",
-                                       diagnostics=(diagnostics_text or "")[:8000]),
+        claude_cli.claude_bin(), "-p",
+        _PROMPT.format(question=question or "Diagnostique l'état du backend.",
+                       diagnostics=(diagnostics_text or "")[:8000]),
         "--output-format", "json",
         "--max-budget-usd", "0.15",
         "--model", "claude-haiku-4-5-20251001",
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=os.environ.copy())
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=claude_cli.claude_env())
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return {"explanation": "Assistant indisponible (claude introuvable ou délai dépassé).", "proposed_action": None}
     try:

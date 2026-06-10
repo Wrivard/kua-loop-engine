@@ -40,6 +40,17 @@ export async function gatewayProxy(opts: {
     return NextResponse.json({ error: "non authentifié" }, { status: 401 });
   }
 
+  // Garde-fou admin : si SYSTEM_ADMIN_EMAILS est défini (recommandé), SEULS ces emails
+  // pilotent le panneau de contrôle → « seulement moi » imposé par le CODE, pas seulement
+  // par le toggle « désactiver l'inscription » de Supabase.
+  const admins = (process.env.SYSTEM_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (admins.length > 0 && !admins.includes((user.email ?? "").toLowerCase())) {
+    return NextResponse.json({ error: "accès réservé aux administrateurs" }, { status: 403 });
+  }
+
   if (!gatewayUrl || !internalToken) {
     return NextResponse.json({ reachable: false, status: "gateway_unavailable" }, { status: 503 });
   }

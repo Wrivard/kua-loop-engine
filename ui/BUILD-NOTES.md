@@ -216,12 +216,23 @@ sudo cp deploy/10-kua-sysctl.sudoers /etc/sudoers.d/10-kua-sysctl
 sudo chmod 440 /etc/sudoers.d/10-kua-sysctl
 sudo visudo -c                             # valide la syntaxe de tout le sudoers
 
-# 2) Lecture des logs : ajouter kua-engine au groupe systemd-journal, puis recharger le process
+# 2) Lecture des logs : ajouter kua-engine au groupe systemd-journal
 sudo usermod -aG systemd-journal kua-engine
-sudo systemctl restart kua-gateway         # le process gateway récupère le nouveau groupe
+
+# 3) Ré-appliquer les units MISES À JOUR (PATH explicite pour claude/kua ; kua-gateway
+#    SANS NoNewPrivileges car il appelle `sudo -n systemctl` — sinon le setuid de sudo
+#    serait ignoré et tout le contrôle échouerait). Puis recharger (le restart fait aussi
+#    prendre le nouveau groupe journal au process gateway) :
+sudo cp deploy/kua-gateway.service deploy/kua-worker.service deploy/kua-mcp-bridge.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart kua-gateway kua-worker kua-mcp-bridge
+
+# 4) VÉRIFIER que le contrôle marche vraiment (sous l'unité, pas juste en shell) :
+sudo -u kua-engine sudo -n systemctl status kua-worker   # doit afficher le statut, pas « not allowed »
 ```
-(Le panneau « Système » s'allume vraiment côté UI après la Phase 3 — env Vercel `GATEWAY_INTERNAL_URL`
-+ `INTERNAL_TOKEN`. Le `reinstall_dep` tourne en `pip` du venv kua-engine, **sans sudo**.)
+(Le panneau « Système » s'allume côté UI après la Phase 3 — env Vercel `GATEWAY_INTERNAL_URL`
++ `INTERNAL_TOKEN`, **et** `SYSTEM_ADMIN_EMAILS=wrivard@kua.quebec` pour verrouiller le contrôle au
+seul admin par le code. Le `reinstall_dep` tourne en `pip` du venv kua-engine, **sans sudo**.)
 
 ## Runbook bring-live (consolidé)
 
@@ -236,8 +247,9 @@ L'agent a préparé tous les fichiers ; les étapes ci-dessous demandent DNS / s
 3. **Secrets VPS** (`/srv/kua/.env`, chmod 600, déjà en place pour la plupart) : `GITHUB_TOKEN`,
    `INTERNAL_TOKEN` (bearer `/internal/*`), `BRIDGE_SECRET` (WS). Jamais commités.
 4. **Vercel** (env serveur, **PAS** `NEXT_PUBLIC`) : `GATEWAY_INTERNAL_URL=https://engine.kua.quebec`,
-   `INTERNAL_TOKEN=<même valeur que /srv/kua/.env>`, `BRIDGE_SECRET=<idem>` (+ `NEXT_PUBLIC_BRIDGE_URL=
-   wss://engine.kua.quebec/mcp-bridge`). **Aucun `GITHUB_TOKEN` dans Vercel.**
+   `INTERNAL_TOKEN=<même valeur que /srv/kua/.env>`, `BRIDGE_SECRET=<idem>`, `SYSTEM_ADMIN_EMAILS=wrivard@kua.quebec`
+   (verrouille le panneau Système au seul admin), (+ `NEXT_PUBLIC_BRIDGE_URL=wss://engine.kua.quebec/mcp-bridge`).
+   **Aucun `GITHUB_TOKEN` dans Vercel.**
 5. **Vérif** : Réglages → Système → la santé passe au vert (gateway/worker/db/bridge `up`) ; le bouton
    « Créer un repo GitHub » fonctionne (Vercel → `engine.kua.quebec/internal/projects` → gateway → GitHub).
 

@@ -102,7 +102,7 @@ def diagnostics(user: str = "?") -> list[dict[str, Any]]:
     _audit("sysctl_diagnostics", allowed=True, user=user)
     results: list[dict[str, Any]] = []
     for name, argv in DIAGNOSTICS:
-        r = _run(argv, timeout=20)
+        r = _run(argv, timeout=12)  # borné : budget diagnostics + claude(90s) < fetch(110s)
         results.append({"name": name, "exit_code": r["exit_code"], "output": r["output"]})
     return results
 
