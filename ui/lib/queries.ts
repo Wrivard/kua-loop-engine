@@ -4,6 +4,7 @@
 
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
+  seedAllLoops,
   seedInboxGroups,
   seedLoopsByProject,
   seedMonthCost,
@@ -20,9 +21,11 @@ import { monthStartDate } from "@/lib/utils";
 import type {
   ApprovalDecision,
   Autonomy,
+  Connection,
   Facade,
   InboxGroup,
   Loop,
+  LoopWithProject,
   MessageRole,
   MessageWithRun,
   Plan,
@@ -215,7 +218,64 @@ export async function getMonthCost(projectId: string): Promise<number> {
   return rows.reduce((sum, r) => sum + (r.cost_usd ? Number(r.cost_usd) : 0), 0);
 }
 
+// --- Settings : modèles, connecteurs (app), réglages app ---
+
+/** Toutes les loops (avec nom de projet) — table des modèles dans Settings. */
+export async function getAllLoops(): Promise<LoopWithProject[]> {
+  if (!isSupabaseConfigured) return seedAllLoops();
+  const { data, error } = await supabase
+    .from("loops")
+    .select("*, projects(name)")
+    .order("project_id");
+  if (error) throw error;
+  return ((data as (Loop & { projects?: { name: string } | null })[]) ?? []).map((r) => {
+    const { projects, ...loop } = r;
+    return { ...loop, project_name: projects?.name ?? loop.project_id } as LoopWithProject;
+  });
+}
+
+/** Connexions de scope app (Settings → Connecteurs). */
+export async function getAppConnections(): Promise<Connection[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("connections")
+    .select("*")
+    .eq("scope", "app")
+    .order("type");
+  if (error) throw error;
+  return (data as Connection[]) ?? [];
+}
+
+/** Réglage app (JSON) par clé (ex. agent_model, coder_model, skills). */
+export async function getAppSetting(key: string): Promise<Record<string, unknown>> {
+  if (!isSupabaseConfigured) return {};
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", key)
+    .maybeSingle();
+  if (error) throw error;
+  return ((data as { value: Record<string, unknown> } | null)?.value) ?? {};
+}
+
 // --- Écritures ---
+
+/** Écrit un réglage app (upsert par clé). No-op en preview. */
+export async function setAppSetting(key: string, value: Record<string, unknown>): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert({ key, value }, { onConflict: "key" });
+  if (error) throw error;
+}
+
+/** Change le modèle d'une loop (Settings → Modèles). No-op en preview. */
+export async function updateLoopModel(loopId: string, model: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase.from("loops").update({ model }).eq("id", loopId);
+  if (error) throw error;
+}
+
 
 /** Enregistre une décision dans `approvals` (doc 12 : UI et Discord écrivent ici). */
 export async function insertApproval(

@@ -10,6 +10,7 @@ import type {
   Facade,
   InboxGroup,
   Loop,
+  LoopWithProject,
   MessageWithRun,
   Project,
   RunRow,
@@ -394,6 +395,11 @@ export function seedProjectById(id: string): Project | null {
 
 export function seedLoopsByProject(projectId: string): Loop[] {
   return SEED_LOOPS.filter((l) => l.project_id === projectId);
+}
+
+export function seedAllLoops(): LoopWithProject[] {
+  const names = new Map(SEED_PROJECTS.map((p) => [p.id, p.name]));
+  return SEED_LOOPS.map((l) => ({ ...l, project_name: names.get(l.project_id) ?? l.project_id }));
 }
 
 export function seedInboxGroups(): InboxGroup[] {

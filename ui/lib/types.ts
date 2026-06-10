@@ -145,3 +145,44 @@ export interface SidebarProject {
   awaiting: number;
   facades: Facade[];
 }
+
+export type ConnectionStatus = "untested" | "ok" | "error";
+export type ConnectionScope = "app" | "project";
+
+/** Connexion (instance) — métadonnées + config NON-secrète. Le secret vit sur le
+ *  VPS (/srv/kua/secrets/), référencé par secret_ref, JAMAIS en DB. */
+export interface Connection {
+  id: string;
+  scope: ConnectionScope;
+  project_id: string | null;
+  type: string;
+  label: string | null;
+  config: Record<string, unknown>;
+  secret_ref: string | null;
+  status: ConnectionStatus;
+  last_checked: string | null;
+  created_at: string;
+}
+
+/** Binding d'un connecteur sur un projet (M4). */
+export interface ProjectConnector {
+  id: string;
+  project_id: string;
+  type: string;
+  enabled: boolean;
+  mode: "inherit" | "own";
+  connection_id: string | null;
+  config: Record<string, unknown>;
+}
+
+export interface ProjectSkill {
+  id: string;
+  project_id: string;
+  skill: string;
+  enabled: boolean;
+}
+
+/** Loop enrichie du nom de projet (table des modèles, Settings). */
+export interface LoopWithProject extends Loop {
+  project_name: string;
+}

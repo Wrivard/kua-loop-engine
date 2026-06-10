@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, Menu, LogOut, Plus } from "lucide-react";
+import { Inbox, Menu, LogOut, Plus, Settings } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -120,6 +120,23 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           })}
         </div>
       </nav>
+
+      {/* Réglages */}
+      <div className="border-t border-border p-2">
+        <Link
+          href="/settings"
+          onClick={onNavigate}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+            pathname === "/settings"
+              ? "bg-accent font-medium"
+              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+          )}
+        >
+          <Settings className="h-4 w-4" />
+          Réglages
+        </Link>
+      </div>
 
       {/* Footer utilisateur */}
       <div className="border-t border-border px-3 py-3">
