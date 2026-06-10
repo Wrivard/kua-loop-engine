@@ -305,6 +305,46 @@ REAP_ORPHANED_RUNS_SQL = """
 """
 
 
+# Threads dont le DERNIER message est de l'utilisateur ET sans run en cours/file
+# → l'agent de façade doit réagir (doc 16). (Le 1er message à la création a déjà
+# un run queued → exclu par le NOT EXISTS, pas de double enqueue.)
+THREADS_AWAITING_AGENT_SQL = """
+    SELECT t.id AS thread_id, m.content AS message
+    FROM threads t
+    JOIN LATERAL (
+        SELECT role, content FROM messages WHERE thread_id = t.id
+        ORDER BY created_at DESC LIMIT 1
+    ) m ON true
+    WHERE m.role = 'user'
+      AND t.status NOT IN ('archived', 'resolved', 'rejected')
+      AND NOT EXISTS (
+          SELECT 1 FROM runs r WHERE r.thread_id = t.id AND r.status = ANY(%s)
+      )
+"""
+
+LAST_RUN_GOAL_SQL = "SELECT goal FROM runs WHERE thread_id = %s ORDER BY created_at DESC LIMIT 1"
+
+# Statuts qui « occupent » un thread (un run est en file ou en cours).
+_PENDING_RUN_STATUSES = ("queued", "preparing", "running", "verifying")
+
+
+def threads_awaiting_agent() -> list[dict[str, Any]]:
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(THREADS_AWAITING_AGENT_SQL, (list(_PENDING_RUN_STATUSES),))
+            return cur.fetchall()
+
+
+def last_run_goal(thread_id: str) -> Optional[str]:
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(LAST_RUN_GOAL_SQL, (thread_id,))
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
 def reap_orphaned_runs(grace_min: int) -> list[dict[str, Any]]:
     """Marque `failed` les runs actifs (preparing/running/verifying) bloqués depuis
     > grace_min (process mort) → débloque la façade. `awaiting_approval` est exclu

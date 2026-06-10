@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from agent.agent import handle_message as agent_decide
 from kua_core import db
 from kua_core.config import get_settings
 from runner import gitops
@@ -306,6 +307,38 @@ def process_approvals() -> list[dict[str, Any]]:
     return results
 
 
+def handle_thread_message(thread_id: str, message: str) -> dict[str, Any]:
+    """Réaction de l'agent de façade à un message utilisateur (doc 16). Le message
+    est une DONNÉE (la nuance), pas une instruction. enqueue_run → relance un run
+    avec la précision (greffée sur le goal du dernier run) ; sinon → réponse agent."""
+    action = agent_decide(thread_id, message)
+    if action.kind == "enqueue_run":
+        base = db.last_run_goal(thread_id)
+        extra = action.goal_extra or message
+        new_goal = f"{base}\n\nPrécision : {extra}" if base else extra
+        run_id = db.add_run(thread_id, new_goal)
+        db.set_thread_status(thread_id, "working")
+        db.post_message(thread_id, "agent", "Compris — je relance un run avec ta précision.")
+        return {"action": "enqueue_run", "run_id": run_id}
+    db.post_message(thread_id, "agent", action.text or "")
+    return {"action": action.kind}
+
+
+def process_agent_messages() -> list[dict[str, Any]]:
+    """Watcher de l'agent de façade : pour chaque thread dont le dernier message est
+    de l'utilisateur (et sans run en cours), fait réagir l'agent (doc 16)."""
+    results: list[dict[str, Any]] = []
+    for row in db.threads_awaiting_agent():
+        tid = str(row["thread_id"])
+        try:
+            res = handle_thread_message(tid, row.get("message") or "")
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("kua: agent message échoué thread=%s", tid)
+            res = {"action": "error", "error": str(exc)}
+        results.append({"thread_id": tid, **res})
+    return results
+
+
 def _reap_orphans() -> None:
     for r in db.reap_orphaned_runs(ORPHAN_GRACE_MIN):
         try:
@@ -330,6 +363,10 @@ def run_worker(*, once: bool = False, poll_interval: float = 5.0, executor: Opti
             process_approvals()
         except Exception:
             logger.exception("kua: process_approvals a levé")
+        try:
+            process_agent_messages()
+        except Exception:
+            logger.exception("kua: process_agent_messages a levé")
         claimed = None
         try:
             claimed = db.claim_queued_run()
