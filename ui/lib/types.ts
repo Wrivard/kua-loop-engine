@@ -215,6 +215,27 @@ export interface ServiceHealth {
   configured?: boolean;
 }
 
+/** Action proposée par l'assistant debug (re-validée contre l'allowlist côté gateway). */
+export interface ProposedAction {
+  type: "restart_service" | "reinstall_dep";
+  service?: string;
+  key?: string;
+}
+
+/** Réponse de /api/system/debug/advise. */
+export interface AdviseResult {
+  status?: string;
+  explanation?: string;
+  proposed_action?: ProposedAction | null;
+}
+
+/** Un bloc de diagnostic (df/free/uptime/pip check). */
+export interface DiagnosticBlock {
+  name: string;
+  exit_code: number;
+  output: string;
+}
+
 /** Réponse de /api/health (proxy de la gateway). `reachable=false` = gateway non joignable. */
 export interface HealthStatus {
   reachable: boolean;
