@@ -29,7 +29,7 @@ export function ThreadRow({
   const showActions = showInlineApproval && awaiting && run;
 
   return (
-    <div className="group relative flex items-center gap-3 rounded-lg border border-transparent pl-4 pr-3 py-3 transition-colors hover:border-border hover:bg-accent/40">
+    <div className="group relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-transparent pl-4 pr-3 py-3 transition-colors hover:border-border hover:bg-accent/40">
       {/* Liseré façade */}
       <span
         aria-hidden
@@ -52,23 +52,24 @@ export function ThreadRow({
         )}
       </div>
 
-      <div className="relative z-10 flex shrink-0 items-center gap-3">
-        {showActions ? (
-          <ApprovalActions
-            runId={run!.id}
-            onDecided={() => onDecided?.(thread.id)}
-          />
-        ) : run ? (
-          <StatusPill status={run.status} />
-        ) : (
-          <Badge className="bg-muted text-muted-foreground">
-            {THREAD_STATUS_LABEL[thread.status]}
-          </Badge>
-        )}
-        <span className="hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground sm:inline">
-          {timeAgo(thread.last_activity_at)}
-        </span>
-      </div>
+      {showActions ? (
+        <div className="relative z-10 flex w-full items-center justify-start gap-3 pl-7 sm:w-auto sm:justify-end sm:pl-0">
+          <ApprovalActions runId={run!.id} onDecided={() => onDecided?.(thread.id)} />
+        </div>
+      ) : (
+        <div className="relative z-10 flex shrink-0 items-center gap-3">
+          {run ? (
+            <StatusPill status={run.status} />
+          ) : (
+            <Badge className="bg-muted text-muted-foreground">
+              {THREAD_STATUS_LABEL[thread.status]}
+            </Badge>
+          )}
+          <span className="hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground sm:inline">
+            {timeAgo(thread.last_activity_at)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
