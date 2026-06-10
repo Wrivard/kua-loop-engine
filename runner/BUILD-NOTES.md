@@ -64,6 +64,28 @@ cd /home/kua-engine/kua-loop-engine
 Depuis l'**UI** (déployée, Supabase configuré) : « + Nouvelle » → la conversation crée un
 run(queued) → un `kua worker` en marche le ramasse, exécute, et la carte passe en « à confirmer ».
 
+## End-to-end LOCAL — ce qui marche (vérifié, 57 tests verts)
+- **UI ↔ Supabase** : `ui/.env.local` câblé sur le vrai projet (clé publishable) ; l'UI lit/écrit
+  les vraies tables en Realtime ; auth réelle active (`/` → 307 `/login`). Données = login requis (RLS).
+- **Créer une conversation** (UI ou `kua run`) → thread + run(queued) ; le worker le pogne (claim
+  prouvé), exécute, livre une branche/PR (bare-local), passe `awaiting_approval`, poste la carte.
+- **Approbation** Oui → merge dans la base (bare) → `pushed` ; Refaire → nouveau run ; le composer
+  (« écrire à l'agent ») relance un run avec la nuance (watcher d'agent, doc 16).
+- **Types généralisés** : 5 presets + Général/custom (façade libre, armée à la volée) ; création de
+  projet depuis l'UI (repo existant ou nouveau).
+- **Garde-fous prouvés** : budget/timeout/verif en échec → AUCUNE branche/PR ; approve_final partout.
+
+## Pour aller LIVE (ce qu'il reste)
+1. **GitHub PAT** dans `/srv/kua/.env` (`GITHUB_TOKEN`) → livraison réelle (push branche + PR draft
+   via API REST ; le code est prêt, `make_deliverer` bascule sur GitHub si URL github + token).
+2. **Un repo de test** (jetable d'abord, sur ton compte) → ajouter en DB comme projet + arme une loop ;
+   `kua run` → vrai `claude -p` → vraie PR draft. (Le smoke test attend ton GO.)
+3. **Worker en service** : `kua worker` en boucle (systemd `deploy/kua-runner.service`). ⚠️ exécute de
+   vrais `claude -p` → ne le lancer que supervisé / avec des loops budgétées.
+4. **Vercel** : `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` dans le projet Vercel
+   (Root Directory = `ui/`) + créer le(s) compte(s) Supabase + désactiver les signups (cf. ui/BUILD-NOTES).
+5. **Livraison « nouveau projet »** (créer le repo distant) : non branchée (nécessite l'API GitHub).
+
 ## ⏳ Ce que j'attends de toi (STOP loggés)
 1. **PAT GitHub** frais dans `/srv/kua/.env` (`GITHUB_TOKEN`) — pour la livraison RÉELLE
    (push branche + PR draft via API REST GitHub). Permissions : Contents R/W + Pull requests

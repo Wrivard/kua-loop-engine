@@ -86,11 +86,14 @@ class FakeExecutor:
     """Déterministe : fait une vraie modif de fichier dans le checkout (aucun appel
     claude, coût 0). Sert aux tests et au self-test bare local."""
 
-    def __init__(self, filename: str = "KUA_RUN.md", content: Optional[str] = None):
+    def __init__(self, filename: str = "KUA_RUN.md", content: Optional[str] = None, status: str = "succeeded"):
         self.filename = filename
         self.content = content
+        self.status = status  # forcer un échec (failed/budget_exceeded/timed_out) pour les tests
 
     def run(self, cwd, goal: str, *, budget_usd=Decimal("0"), timeout_min: int = 30, model: str = "fake") -> ExecResult:
+        if self.status != "succeeded":
+            return ExecResult(self.status, Decimal("0"), 0, f"(fake) {self.status}", "fake-session", "{}")
         p = Path(cwd) / self.filename
         body = self.content if self.content is not None else f"# Run kua\n\nGoal traité :\n\n{goal}\n"
         prev = p.read_text(encoding="utf-8") if p.exists() else ""

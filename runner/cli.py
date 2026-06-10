@@ -61,8 +61,14 @@ def cmd_run(project: str, facade: str, goal: str, goal_extra: str | None) -> int
 
 
 def cmd_worker(once: bool) -> int:
+    import logging
+
     from runner import worker
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+    )
     worker.run_worker(once=once)
     return 0
 
