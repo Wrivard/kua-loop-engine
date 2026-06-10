@@ -19,6 +19,14 @@ EnvironmentFile=/srv/kua/.env
 ExecStart=/home/kua-engine/kua-loop-engine/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
 Restart=always
 RestartSec=3
+# Durcissement (kua-engine, jamais root ; pas d'élévation, FS protégé).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=kua-mcp-bridge

@@ -5,6 +5,7 @@ import { AppearanceSettings } from "@/components/settings/appearance";
 import { ModelsSettings } from "@/components/settings/models";
 import { ConnectorsSettings } from "@/components/settings/connectors";
 import { SkillsSettings } from "@/components/settings/skills";
+import { SystemSettingsPanel } from "@/components/settings/system";
 
 export function SettingsView() {
   return (
@@ -16,6 +17,7 @@ export function SettingsView() {
           <TabsTrigger value="models">Modèles</TabsTrigger>
           <TabsTrigger value="connectors">Connecteurs</TabsTrigger>
           <TabsTrigger value="skills">Skills</TabsTrigger>
+          <TabsTrigger value="system">Système</TabsTrigger>
         </TabsList>
         <TabsContent value="appearance">
           <AppearanceSettings />
@@ -28,6 +30,9 @@ export function SettingsView() {
         </TabsContent>
         <TabsContent value="skills">
           <SkillsSettings />
+        </TabsContent>
+        <TabsContent value="system">
+          <SystemSettingsPanel />
         </TabsContent>
       </Tabs>
     </div>

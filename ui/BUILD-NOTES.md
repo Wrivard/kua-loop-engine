@@ -151,15 +151,8 @@ tokens (round-trip/exp/tamper), WS (auth rejetée / commande refusée). Guidage 
 (plan Max, **aucune clé API**). UI : terminal `McpWizard` (stream, URL cliquables, saisie OAuth) dans
 Settings → Connecteurs (scope app) ET le drawer projet (scope projet).
 
-**Bring-live (À FAIRE avec William — fichiers prêts, RIEN activé)** :
-1. **DNS** : `A engine.kua.quebec → IP du VPS`.
-2. **Caddy + systemd** (sudo) : `deploy/Caddyfile` (bloc `engine.kua.quebec` → `127.0.0.1:8001`) +
-   `deploy/kua-mcp-bridge.service` → `sudo systemctl enable --now kua-mcp-bridge` ; recharger Caddy.
-   (Ports 80/443 ouverts pour le TLS Let's Encrypt.)
-3. **Secrets** : `BRIDGE_SECRET=<aléatoire long>` dans `/srv/kua/.env` (gateway + bridge) ; sur **Vercel** :
-   `NEXT_PUBLIC_BRIDGE_URL=wss://engine.kua.quebec/mcp-bridge` + `BRIDGE_SECRET` (server-side, PAS public).
-4. **1er install MCP réel** (OAuth) ensemble : ouvrir le wizard → « Guide » → lancer `claude mcp add …`
-   → coller le code OAuth → vérifier `claude mcp list`.
+**Bring-live** : voir le **Runbook bring-live (consolidé)** plus bas (DNS + sudo + secrets Vercel),
+puis 1er install MCP réel (OAuth) ensemble : wizard → « Guide » → `claude mcp add …` → code OAuth → `claude mcp list`.
 
 ## Create-repo + garde-fou workspace
 
@@ -183,8 +176,45 @@ Défaut `RunCtx.workspace=False` → fail-closed. Prouvé par `runner/tests/test
 la commande CLI `kua project create …`. **Le `GITHUB_TOKEN` n'est JAMAIS dupliqué dans Vercel** : il reste
 sur le VPS (gateway) ; Vercel ne détient au plus que `GATEWAY_INTERNAL_URL` + `INTERNAL_TOKEN` (bearer gateway).
 
-Bring-live du bouton (avec William) : exposer la gateway (cf. section bridge), puis dans Vercel
-`GATEWAY_INTERNAL_URL=https://engine.kua.quebec` + `INTERNAL_TOKEN=<même secret que /srv/kua/.env>`.
+Bring-live du bouton : voir le **Runbook bring-live (consolidé)** ci-dessous.
+
+## Système (santé + pause moteur) — onglet Réglages « Système »
+
+**Toujours-actif** : le backend doit tourner en permanence (j'utilise l'app du cell, loin du desktop).
+Les units systemd sont durcies (`Restart=always`, démarrage au boot, `NoNewPrivileges`, `ProtectSystem=full`,
+`kua-engine` jamais root) : `kua-gateway` (8000), `kua-worker` (boucle Runner), `kua-mcp-bridge` (8001).
+**Fichiers seulement — RIEN n'est activé** (l'`enable`/`start` = sudo, au bring-live).
+
+**Santé** : la gateway expose `GET /health` (public, aucun secret) → `{status, version, uptime, paused,
+services:{gateway, db, worker, mcp_bridge}}`. Le worker rafraîchit un heartbeat (~10s, thread daemon) →
+`/health` distingue « worker occupé » de « worker mort » (seuil 30s). L'UI lit via `/api/health` (proxy Next
+authentifié) ; tant que l'engine n'est pas exposé → « gateway non joignable » proprement.
+
+**Pause / Reprendre (le « débrancher » sécuritaire)** : flag DB `system_settings.paused` (migration 006).
+Le worker le vérifie **dans le claim SQL** (atomique) → en pause, AUCUN nouveau run réclamé ; les runs en
+cours finissent ; approbations/merges continuent. Le toggle UI écrit le flag **via Supabase** → **marche
+tout de suite, sans la gateway**. PAS de `systemctl` depuis le web (le web ne touche jamais aux services).
+
+## Runbook bring-live (consolidé)
+
+Allumer le backend always-on + exposer la gateway. **Le `GITHUB_TOKEN` reste sur le VPS** (jamais dans Vercel).
+L'agent a préparé tous les fichiers ; les étapes ci-dessous demandent DNS / sudo / env Vercel (avec William).
+
+1. **DNS** : enregistrement `A engine.kua.quebec → IP publique du VPS`. Ouvrir ufw 80/443 (TLS Let's Encrypt).
+2. **Services (sudo)** : copier `deploy/*.service` dans `/etc/systemd/system/`, puis
+   `sudo systemctl enable --now kua-gateway kua-worker kua-mcp-bridge`.
+   Caddy : `deploy/Caddyfile` (bloc `engine.kua.quebec` → gateway 8000, `/mcp-bridge` → bridge 8001) →
+   `sudo systemctl reload caddy`.
+3. **Secrets VPS** (`/srv/kua/.env`, chmod 600, déjà en place pour la plupart) : `GITHUB_TOKEN`,
+   `INTERNAL_TOKEN` (bearer `/internal/*`), `BRIDGE_SECRET` (WS). Jamais commités.
+4. **Vercel** (env serveur, **PAS** `NEXT_PUBLIC`) : `GATEWAY_INTERNAL_URL=https://engine.kua.quebec`,
+   `INTERNAL_TOKEN=<même valeur que /srv/kua/.env>`, `BRIDGE_SECRET=<idem>` (+ `NEXT_PUBLIC_BRIDGE_URL=
+   wss://engine.kua.quebec/mcp-bridge`). **Aucun `GITHUB_TOKEN` dans Vercel.**
+5. **Vérif** : Réglages → Système → la santé passe au vert (gateway/worker/db/bridge `up`) ; le bouton
+   « Créer un repo GitHub » fonctionne (Vercel → `engine.kua.quebec/internal/projects` → gateway → GitHub).
+
+**Sécurité de l'exposition** : `/health` public (aucun secret) ; `/internal/*` exige le bearer `INTERNAL_TOKEN` ;
+le WS `/mcp-bridge` exige un token court-terme (HMAC `BRIDGE_SECRET`). Le web ne lance jamais de `systemctl`.
 
 ## État par écran
 Légende : ✅ FAIT · 🟡 PARTIEL · ⬜ À FAIRE

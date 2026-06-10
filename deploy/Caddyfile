@@ -16,14 +16,19 @@ hooks.kua.quebec {
 	}
 }
 
-# Bridge MCP (wizard) — WebSocket /mcp-bridge sur l'instance dédiée (port 8001,
-# kua-mcp-bridge.service). Caddy proxifie les WebSockets nativement (Upgrade géré).
+# Engine public (depuis Vercel) — HTTPS → gateway (8000) + bridge MCP (8001).
 # PRÉREQUIS humains (hors agent) : DNS A engine.kua.quebec → IP VPS ; ports 80/443
-# ouverts (TLS Let's Encrypt). Le navigateur s'y connecte avec un token court-terme
-# émis par la route Next /api/mcp-bridge/token (secret long-terme côté serveur).
+# ouverts (TLS Let's Encrypt).
+# Sécurité : /health est public (aucun secret) ; /internal/* exige le bearer
+# INTERNAL_TOKEN (gateway) ; le WS /mcp-bridge exige un token court-terme émis par la
+# route Next /api/mcp-bridge/token (secret long-terme côté serveur).
 engine.kua.quebec {
 	encode gzip
-	reverse_proxy 127.0.0.1:8001
+	# WS du wizard MCP → process bridge DÉDIÉ (8001, kua-mcp-bridge.service ; isole les PTY).
+	@bridge path /mcp-bridge*
+	reverse_proxy @bridge 127.0.0.1:8001
+	# Tout le reste (/health, /internal/*) → gateway (8000). Caddy gère l'Upgrade WS nativement.
+	reverse_proxy 127.0.0.1:8000
 	log {
 		output file /var/log/caddy/engine.kua.quebec.log
 	}

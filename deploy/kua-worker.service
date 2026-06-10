@@ -1,9 +1,11 @@
-# Trigger Gateway (FastAPI) — doc 05 / doc 07
+# Worker du Runner (boucle claim → claude -p) — doc 05 / doc 06.
 # Template — copié dans /etc/systemd/system/ mais PAS activé par l'agent (sudo = bring-live).
-# Sert /health (public), /internal/* (bearer INTERNAL_TOKEN) et le WS /mcp-bridge.
-# Activation (AVEC William) : sudo systemctl enable --now kua-gateway
+# Activation (AVEC William) : sudo systemctl enable --now kua-worker
+#
+# Le worker est le SEUL invocateur de `claude -p`. Indépendant du gateway (il parle
+# directement à la DB) : aucun Requires croisé → un service qui tombe n'entraîne pas les autres.
 [Unit]
-Description=kua-loop-engine Trigger Gateway (FastAPI)
+Description=kua-loop-engine Worker (boucle Runner, claude -p)
 After=network-online.target
 Wants=network-online.target
 
@@ -11,11 +13,11 @@ Wants=network-online.target
 Type=simple
 User=kua-engine
 Group=kua-engine
-WorkingDirectory=/home/kua-engine/kua-loop-engine/gateway
+WorkingDirectory=/home/kua-engine/kua-loop-engine
 EnvironmentFile=/srv/kua/.env
-ExecStart=/home/kua-engine/kua-loop-engine/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+ExecStart=/home/kua-engine/kua-loop-engine/.venv/bin/python -m runner.cli worker
 Restart=always
-RestartSec=3
+RestartSec=5
 # Durcissement (kua-engine, jamais root ; pas d'élévation, FS protégé).
 NoNewPrivileges=true
 PrivateTmp=true
@@ -24,10 +26,9 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 RestrictRealtime=true
 LockPersonality=true
-# Logs JSON structurés (stdout) → journald
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=kua-gateway
+SyslogIdentifier=kua-worker
 
 [Install]
 WantedBy=multi-user.target

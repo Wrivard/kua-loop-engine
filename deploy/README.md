@@ -5,12 +5,17 @@ Tous ces fichiers sont des **templates**. Les units systemd sont copiées dans
 S1–S5 ne sont pas verts.
 
 ## Contenu
-- `kua-gateway.service` — Trigger Gateway (uvicorn, 127.0.0.1:8000).
-- `kua-runner.service` — Runner (worker `claude -p`).
+- `kua-gateway.service` — Trigger Gateway (uvicorn, 127.0.0.1:8000) : /health, /internal/*, WS.
+- `kua-worker.service` — Worker du Runner (boucle `claude -p`, `runner.cli worker`).
+- `kua-mcp-bridge.service` — Bridge MCP (uvicorn, 127.0.0.1:8001) : WS /mcp-bridge isolé.
 - `hermes-gateway.service` — Hermes (Discord + cron). Ajuster `ExecStart` au
   chemin réel du binaire après installation.
-- `Caddyfile` — reverse proxy TLS `hooks.kua.quebec` → gateway.
+- `Caddyfile` — reverse proxy TLS `hooks.kua.quebec` + `engine.kua.quebec` → gateway/bridge.
 - `docker-compose.yml` — placeholder sandbox d'exécution durci (doc 13).
+
+Toutes les units : `Restart=always`, démarrage au boot (`WantedBy=multi-user.target`),
+durcissement (`NoNewPrivileges`, `ProtectSystem=full`, …), `kua-engine` jamais root.
+Runbook d'allumage (DNS + sudo + Vercel) : `ui/BUILD-NOTES.md` § « Runbook bring-live ».
 
 ## Secrets
 Les units lisent `/srv/kua/.env` via `EnvironmentFile` (chmod 600, doc 13).

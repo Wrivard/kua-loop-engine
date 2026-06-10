@@ -19,6 +19,7 @@ import logging
 import os
 import shutil
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +41,20 @@ logger = logging.getLogger("kua.runner")
 
 # Délai au-delà duquel un run actif (preparing/running/verifying) est jugé orphelin.
 ORPHAN_GRACE_MIN = int(os.environ.get("KUA_ORPHAN_GRACE_MIN", "60"))
+
+# Intervalle du heartbeat worker (un thread daemon le rafraîchit même pendant un long
+# run synchrone → /health distingue « worker occupé » de « worker mort »).
+HEARTBEAT_SEC = float(os.environ.get("KUA_HEARTBEAT_SEC", "10"))
+
+
+def _heartbeat_loop(pid: int) -> None:
+    """Thread daemon : rafraîchit le heartbeat worker en continu (best-effort)."""
+    while True:
+        try:
+            db.touch_worker_heartbeat(pid)
+        except Exception:
+            logger.exception("kua: heartbeat worker a échoué")
+        time.sleep(HEARTBEAT_SEC)
 
 
 def _now() -> datetime:
@@ -379,7 +394,20 @@ def _reap_orphans() -> None:
 
 
 def run_worker(*, once: bool = False, poll_interval: float = 5.0, executor: Optional[Executor] = None) -> None:
-    """Boucle principale. Chaque étape est protégée : un run pourri ne tue jamais le daemon."""
+    """Boucle principale. Chaque étape est protégée : un run pourri ne tue jamais le daemon.
+
+    Pause : le claim est gardé côté SQL (aucun NOUVEAU run réclamé quand `paused`) ; les
+    runs déjà en cours finissent, et approbations/messages d'agent continuent (achèvement)."""
+    if once:
+        try:
+            db.touch_worker_heartbeat(os.getpid())
+        except Exception:
+            logger.exception("kua: heartbeat worker a échoué")
+    else:
+        threading.Thread(
+            target=_heartbeat_loop, args=(os.getpid(),), daemon=True, name="kua-heartbeat"
+        ).start()
+    was_paused = False
     while True:
         try:
             _reap_orphans()
@@ -393,13 +421,24 @@ def run_worker(*, once: bool = False, poll_interval: float = 5.0, executor: Opti
             process_agent_messages()
         except Exception:
             logger.exception("kua: process_agent_messages a levé")
-        claimed = None
+        # Pause : le garde-fou AUTORITAIRE est dans le claim SQL (atomique). Ici on lit le flag
+        # pour logguer les transitions et éviter un aller-retour DB inutile pendant la pause.
         try:
-            claimed = db.claim_queued_run()
-            if claimed:
-                process_run(str(claimed["run_id"]), executor=executor)
+            paused = db.is_paused()
         except Exception:
-            logger.exception("kua: claim/process_run a levé")
+            logger.exception("kua: lecture de l'état pause a échoué")
+            paused = False
+        if paused != was_paused:
+            logger.info("kua: moteur %s", "EN PAUSE — aucun nouveau run" if paused else "REPRIS")
+            was_paused = paused
+        claimed = None
+        if not paused:
+            try:
+                claimed = db.claim_queued_run()
+                if claimed:
+                    process_run(str(claimed["id"]), executor=executor)  # RETURNING * → clé 'id'
+            except Exception:
+                logger.exception("kua: claim/process_run a levé")
         if once:
             break
         if not claimed:

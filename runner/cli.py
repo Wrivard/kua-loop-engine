@@ -2,6 +2,7 @@
 
     kua run --project X --facade Y --goal "..."   # enqueue thread + run(queued)
     kua worker [--once]                            # boucle du worker (claim → exécute)
+    kua pause | kua resume                         # pause/reprise du moteur (flag DB)
     kua status [run_id]                            # état lisible
     kua approve <run_id>                           # décision → merge selon autonomie
     kua reject  <run_id> [--redo "…"]              # rejette (ou relance avec nuance)
@@ -98,6 +99,18 @@ def cmd_status(run_id: str | None) -> int:
         print(f"  {str(rid)[:8]}  {status:18s} {facade:10s} {proj:20s} ${cost}")
     if not rows:
         print("  (aucun run)")
+    return 0
+
+
+def cmd_pause(paused: bool) -> int:
+    from kua_core import db
+
+    try:
+        db.set_paused(paused)
+    except Exception as exc:  # noqa: BLE001
+        print(f"kua {'pause' if paused else 'resume'} : échec — {exc}", file=sys.stderr)
+        return 1
+    print("moteur EN PAUSE — aucun nouveau run (les runs en cours finissent)." if paused else "moteur REPRIS.")
     return 0
 
 
@@ -243,6 +256,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_worker = sub.add_parser("worker", help="boucle du worker")
     p_worker.add_argument("--once", action="store_true", help="traite un seul cycle puis sort")
 
+    sub.add_parser("pause", help="met le moteur en pause (aucun nouveau run ; les runs en cours finissent)")
+    sub.add_parser("resume", help="reprend le moteur (après une pause)")
+
     p_status = sub.add_parser("status", help="état lisible d'un run (ou des derniers)")
     p_status.add_argument("run_id", nargs="?", default=None)
 
@@ -292,6 +308,10 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_run(args.project, args.facade, args.goal, args.goal_extra)
     if args.command == "worker":
         return cmd_worker(args.once)
+    if args.command == "pause":
+        return cmd_pause(True)
+    if args.command == "resume":
+        return cmd_pause(False)
     if args.command == "status":
         return cmd_status(args.run_id)
     if args.command == "approve":

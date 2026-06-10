@@ -35,6 +35,7 @@ import type {
   ProjectSkill,
   RunRow,
   SidebarProject,
+  SystemSettings,
   ThreadListItem,
   ThreadRow,
 } from "@/lib/types";
@@ -276,6 +277,30 @@ export async function setAppSetting(key: string, value: Record<string, unknown>)
 export async function updateLoopModel(loopId: string, model: string): Promise<void> {
   if (!isSupabaseConfigured) return;
   const { error } = await supabase.from("loops").update({ model }).eq("id", loopId);
+  if (error) throw error;
+}
+
+// --- Système (pause moteur) — écrit DIRECTEMENT via Supabase (marche sans la gateway) ---
+
+/** Réglages système (singleton id=1). null en preview. */
+export async function getSystemSettings(): Promise<SystemSettings | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase
+    .from("system_settings")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as SystemSettings | null) ?? null;
+}
+
+/** Met le moteur en pause / le reprend. Le worker vérifie ce flag avant de claim un run. */
+export async function setPaused(paused: boolean): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from("system_settings")
+    .update({ paused, updated_at: new Date().toISOString() })
+    .eq("id", 1);
   if (error) throw error;
 }
 

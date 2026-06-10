@@ -80,7 +80,7 @@ run(queued) → un `kua worker` en marche le ramasse, exécute, et la carte pass
    via API REST ; le code est prêt, `make_deliverer` bascule sur GitHub si URL github + token).
 2. **Un repo de test** (jetable d'abord, sur ton compte) → ajouter en DB comme projet + arme une loop ;
    `kua run` → vrai `claude -p` → vraie PR draft. (Le smoke test attend ton GO.)
-3. **Worker en service** : `kua worker` en boucle (systemd `deploy/kua-runner.service`). ⚠️ exécute de
+3. **Worker en service** : `kua worker` en boucle (systemd `deploy/kua-worker.service`). ⚠️ exécute de
    vrais `claude -p` → ne le lancer que supervisé / avec des loops budgétées.
 4. **Vercel** : `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` dans le projet Vercel
    (Root Directory = `ui/`) + créer le(s) compte(s) Supabase + désactiver les signups (cf. ui/BUILD-NOTES).

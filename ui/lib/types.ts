@@ -195,3 +195,38 @@ export interface ProjectMcp {
 export interface LoopWithProject extends Loop {
   project_name: string;
 }
+
+/** Réglages système (singleton id=1) — pause moteur + heartbeat worker (migration 006). */
+export interface SystemSettings {
+  id: number;
+  paused: boolean;
+  worker_heartbeat_at: string | null;
+  worker_pid: number | null;
+  updated_at: string;
+}
+
+/** État d'un service dans /health. */
+export interface ServiceHealth {
+  up: boolean;
+  detail?: string;
+  last_heartbeat?: string;
+  age_seconds?: number;
+  pid?: number | null;
+  configured?: boolean;
+}
+
+/** Réponse de /api/health (proxy de la gateway). `reachable=false` = gateway non joignable. */
+export interface HealthStatus {
+  reachable: boolean;
+  reason?: string;
+  status?: string;
+  version?: string;
+  uptime_seconds?: number;
+  paused?: boolean;
+  services?: {
+    gateway: ServiceHealth;
+    db: ServiceHealth;
+    worker: ServiceHealth;
+    mcp_bridge: ServiceHealth;
+  };
+}

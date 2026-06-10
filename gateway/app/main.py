@@ -18,6 +18,8 @@ import json
 import os
 import select
 import signal
+import time
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -26,9 +28,29 @@ from fastapi.responses import JSONResponse
 from app import bridge_auth, db, mcp_bridge
 from app.config import get_settings
 
-app = FastAPI(title="kua-loop-engine Trigger Gateway", version="0.1.0-s4")
+VERSION = "0.1.0-s4"
+app = FastAPI(title="kua-loop-engine Trigger Gateway", version=VERSION)
 
 SIGNATURE_HEADER = "sentry-hook-signature"
+
+# Démarrage du process (uptime). monotonic = robuste aux sauts d'horloge.
+_STARTED_MONO = time.monotonic()
+# Au-delà de ce délai sans heartbeat, le worker est jugé mort (3× l'intervalle ~10s).
+WORKER_STALE_SEC = 30.0
+# Port du process bridge dédié (kua-mcp-bridge.service) — testé pour une vraie liveness.
+BRIDGE_PORT = int(os.environ.get("KUA_BRIDGE_PORT", "8001"))
+
+
+def _port_alive(port: int, timeout: float = 0.3) -> bool:
+    """True si un process écoute sur 127.0.0.1:port. Refus de connexion = échec immédiat
+    (pas d'attente du timeout) → /health reste rapide."""
+    import socket  # noqa: PLC0415
+
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 def log_json(event: str, **fields: Any) -> None:
@@ -89,8 +111,46 @@ def extract_sentry_fields(payload: Any) -> dict[str, Optional[str]]:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, Any]:
+    """État du moteur (panneau Réglages « Système »). Public (aucun secret) : up/down de
+    chaque service, version, uptime, heartbeat worker. L'auth est exigée sur /internal/* et le WS."""
+    # Un seul appel DB (kua_core via psycopg) sert de ping ET lit l'état système.
+    db_up, db_detail, sys_status = False, None, {}
+    try:
+        from kua_core import db as core_db  # noqa: PLC0415
+
+        sys_status = core_db.get_system_status()
+        db_up = True
+    except Exception as exc:  # noqa: BLE001
+        db_detail = type(exc).__name__
+
+    worker: dict[str, Any] = {"up": False}
+    hb = sys_status.get("worker_heartbeat_at")
+    if hb is not None:
+        age = (datetime.now(timezone.utc) - hb).total_seconds()
+        worker = {
+            "up": age < WORKER_STALE_SEC,
+            "last_heartbeat": hb.isoformat(),
+            "age_seconds": round(age, 1),
+            "pid": sys_status.get("worker_pid"),
+        }
+
+    bridge_on = bool(get_settings().bridge_secret)
+    services = {
+        "gateway": {"up": True},
+        "db": {"up": db_up, **({"detail": db_detail} if db_detail else {})},
+        "worker": worker,
+        # up = process bridge dédié (8001) VIVANT et configuré ; configured = secret présent.
+        # (Le WS /mcp-bridge est routé par Caddy vers 8001, d'où la vraie liveness du port.)
+        "mcp_bridge": {"up": bridge_on and _port_alive(BRIDGE_PORT), "configured": bridge_on},
+    }
+    return {
+        "status": "ok" if db_up else "degraded",
+        "version": VERSION,
+        "uptime_seconds": round(time.monotonic() - _STARTED_MONO, 1),
+        "paused": bool(sys_status.get("paused")),
+        "services": services,
+    }
 
 
 # ----------------------------------------------------- Bridge MCP (wizard) ---

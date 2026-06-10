@@ -34,4 +34,4 @@ Configuration clé (`~/.hermes/config.yaml`) :
 Ces spikes (liste canonique S1–S5 dans 14-ROADMAP) valident les hypothèses d'intégration. Aucun autre code avant qu'ils passent.
 
 ## systemd
-Trois unités : `kua-gateway.service` (FastAPI), `kua-runner.service` (worker), `hermes-gateway.service`. Restart=always, logs vers journald + fichiers JSON dans `/var/log/kua/`.
+Unités : `kua-gateway.service` (FastAPI, 8000), `kua-worker.service` (worker Runner), `kua-mcp-bridge.service` (bridge WS, 8001), `hermes-gateway.service`. Restart=always, démarrage au boot, durcissement (`NoNewPrivileges`, `ProtectSystem=full`), logs vers journald + fichiers JSON dans `/var/log/kua/`. Allumage : voir le runbook bring-live (`ui/BUILD-NOTES.md`).

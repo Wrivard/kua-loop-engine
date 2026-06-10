@@ -60,6 +60,9 @@ CLAIM_RUN_SQL = """
         SELECT r.id FROM runs r
         JOIN threads t ON t.id = r.thread_id
         WHERE r.status = 'queued'
+          -- Garde-fou PAUSE (débrancher sécuritaire) : moteur en pause → aucun NOUVEAU
+          -- run réclamé (les runs déjà en cours finissent). Atomique dans le claim.
+          AND NOT EXISTS (SELECT 1 FROM system_settings WHERE id = 1 AND paused)
           AND NOT EXISTS (
               SELECT 1 FROM runs r2
               JOIN threads t2 ON t2.id = r2.thread_id
@@ -533,6 +536,52 @@ def ensure_loop(
                 return str(row[0])
             cur.execute("SELECT id FROM loops WHERE project_id=%s AND facade=%s", (project_id, facade))
             return str(cur.fetchone()[0])
+
+
+# ------------------------------------------------ Système : pause + heartbeat (doc 06) ---
+# Singleton system_settings (id=1, migration 006). Le worker écrit via psycopg (hors RLS) ;
+# l'UI écrit `paused` via l'API Supabase (RLS authenticated).
+
+def is_paused() -> bool:
+    """True si le moteur est en pause (aucun nouveau run réclamé). False si absent/erreur.
+    Le garde-fou autoritaire reste la clause SQL du claim ; ceci sert au worker (log + skip)."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT paused FROM system_settings WHERE id = 1")
+            row = cur.fetchone()
+            return bool(row[0]) if row else False
+
+
+def set_paused(paused: bool) -> None:
+    """Met le moteur en pause / le reprend (CLI `kua pause`/`kua resume` ; l'UI passe par Supabase)."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE system_settings SET paused = %s, updated_at = now() WHERE id = 1",
+                (paused,),
+            )
+
+
+def touch_worker_heartbeat(pid: Optional[int] = None) -> None:
+    """Rafraîchit le heartbeat du worker (→ /health sait s'il est vivant)."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE system_settings SET worker_heartbeat_at = now(), worker_pid = %s WHERE id = 1",
+                (pid,),
+            )
+
+
+def get_system_status() -> dict[str, Any]:
+    """État système (paused + heartbeat worker) pour /health. {} si table absente."""
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT paused, worker_heartbeat_at, worker_pid, updated_at FROM system_settings WHERE id = 1"
+            )
+            return cur.fetchone() or {}
 
 
 def get_app_setting(key: str) -> dict[str, Any]:
