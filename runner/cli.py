@@ -142,6 +142,21 @@ def cmd_selftest(keep: bool) -> int:
     return 0 if rep.get("ok") else 1
 
 
+def cmd_project_create(name: str, private: bool, facade: str, budget_usd: float) -> int:
+    from kua_core.provision import provision_repo_project
+
+    try:
+        res = provision_repo_project(name, private=private, facade=facade, budget_usd=budget_usd)
+    except Exception as exc:  # noqa: BLE001
+        print(f"kua project create : échec — {exc}", file=sys.stderr)
+        return 1
+    print(f"repo créé : {res['html_url']}  ({'privé' if res['private'] else 'public'})")
+    print(f"projet enregistré : slug={res['slug']} · chargé=oui · repo_url={res['repo_url']}")
+    print(f"loop armée : facade={res['facade']} autonomy={res['autonomy']} budget=${res['budget_usd']}")
+    print(f"  → `kua run --project {res['slug']} --facade {res['facade']} --goal \"…\"` pour lancer un thread.")
+    return 0
+
+
 def cmd_connector_set(scope: str, project: str | None, type_: str, sets: list[str]) -> int:
     from kua_core import connectors, db, secrets
 
@@ -245,6 +260,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_sync = sub.add_parser("sync", help="loops.yaml → DB (dry-run)")
     p_sync.add_argument("target", help="chemin d'un repo ou 'all'")
 
+    p_proj = sub.add_parser("project", help="projets : create (crée un repo + enregistre le projet chargé)")
+    psub = p_proj.add_subparsers(dest="proj_cmd", required=True)
+    pcreate = psub.add_parser("create", help="crée un repo GitHub + enregistre le projet (chargé) + une loop")
+    pcreate.add_argument("--name", required=True, help="nom du projet (→ slug du repo)")
+    pcreate.add_argument("--private", dest="private", action="store_true", default=True, help="repo privé (défaut)")
+    pcreate.add_argument("--public", dest="private", action="store_false", help="repo public")
+    pcreate.add_argument("--facade", default="general", help="façade de la loop (défaut: general)")
+    pcreate.add_argument("--budget", type=float, default=5.0, help="budget_usd de la loop (> 0, défaut: 5)")
+
     p_conn = sub.add_parser("connector", help="connecteurs : set / test / list")
     csub = p_conn.add_subparsers(dest="conn_cmd", required=True)
     cset = csub.add_parser("set", help="enregistre une connexion (+ secret sur le VPS)")
@@ -278,6 +302,9 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_selftest(args.keep)
     if args.command == "sync":
         return cmd_sync(args.target)
+    if args.command == "project":
+        if args.proj_cmd == "create":
+            return cmd_project_create(args.name, args.private, args.facade, args.budget)
     if args.command == "connector":
         if args.conn_cmd == "set":
             return cmd_connector_set(args.scope, args.project, args.type, args.sets)

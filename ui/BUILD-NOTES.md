@@ -161,6 +161,31 @@ Settings → Connecteurs (scope app) ET le drawer projet (scope projet).
 4. **1er install MCP réel** (OAuth) ensemble : ouvrir le wizard → « Guide » → lancer `claude mcp add …`
    → coller le code OAuth → vérifier `claude mcp list`.
 
+## Create-repo + garde-fou workspace
+
+**Capacité create-repo** (depuis l'engine) : crée un repo GitHub puis l'enregistre comme projet **chargé**.
+- `kua_core/github_api.py` : `create_user_repo` → `POST /user/repos` (README, branche `main`, privé par défaut)
+  avec le `GITHUB_TOKEN` de `/srv/kua/.env` (scope Administration R/W). Token **jamais journalisé/renvoyé**.
+- `kua_core/provision.py` : `provision_repo_project(name)` → crée le repo, `db.register_project(workspace=true,
+  is_engine=false, allow_auto=false)` + `db.ensure_loop(facade=general, autonomy=approve_final, budget>0)`.
+- **CLI** : `kua project create --name "…" [--private|--public] [--facade general] [--budget 5]`.
+- **Gateway** (futur bouton UI) : `POST /internal/projects` (bearer `INTERNAL_TOKEN`, server-side).
+
+**Garde-fou WORKSPACE (permanent)** : le Runner n'agit QUE sur un projet **enregistré ET chargé**
+(`projects.workspace=true`, migration 005). `process_run` **refuse avant tout checkout/spawn** si
+`workspace=false` (même si le token a accès au repo) ; `_merge_run` re-vérifie (défense en profondeur).
+Défaut `RunCtx.workspace=False` → fail-closed. Prouvé par `runner/tests/test_workspace_guard.py`
+(même repo : `workspace=false` → exécuteur jamais appelé + 0 branche poussée ; `workspace=true` → run normal).
+
+**Bouton UI « créer un repo »** : `NewProjectDialog` a un mode « Créer un repo GitHub » → `POST
+/api/projects/create` (route Next, auth Supabase) qui **proxifie** vers la gateway avec un `INTERNAL_TOKEN`
+**server-side**. Tant que la gateway n'est pas exposée (`GATEWAY_INTERNAL_URL` absent) → 503, et l'UI affiche
+la commande CLI `kua project create …`. **Le `GITHUB_TOKEN` n'est JAMAIS dupliqué dans Vercel** : il reste
+sur le VPS (gateway) ; Vercel ne détient au plus que `GATEWAY_INTERNAL_URL` + `INTERNAL_TOKEN` (bearer gateway).
+
+Bring-live du bouton (avec William) : exposer la gateway (cf. section bridge), puis dans Vercel
+`GATEWAY_INTERNAL_URL=https://engine.kua.quebec` + `INTERNAL_TOKEN=<même secret que /srv/kua/.env>`.
+
 ## État par écran
 Légende : ✅ FAIT · 🟡 PARTIEL · ⬜ À FAIRE
 

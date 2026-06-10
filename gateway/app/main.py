@@ -205,6 +205,52 @@ async def mcp_bridge_ws(ws: WebSocket) -> None:
         await _stream_pty(ws, argv)
 
 
+# ----------------------------------------------- Routes internes (futur bouton UI) ---
+# Auth = bearer INTERNAL_TOKEN (secret long-terme côté serveur, jamais dans Vercel/UI).
+# Tant que la gateway n'est pas exposée, la capacité create-repo s'utilise via la CLI
+# `kua project create`. Cette route la rendra accessible au bouton UI via un proxy
+# serveur Next (qui détient le bearer) — voir ui/BUILD-NOTES.md.
+
+
+def _check_internal_auth(request: Request) -> bool:
+    token = get_settings().internal_token
+    if not token:
+        return False
+    header = request.headers.get("authorization", "")
+    provided = header[7:] if header.lower().startswith("bearer ") else ""
+    return bool(provided) and hmac.compare_digest(provided.encode(), token.encode())
+
+
+@app.post("/internal/projects")
+async def internal_create_project(request: Request) -> JSONResponse:
+    if not get_settings().internal_token:
+        return JSONResponse(status_code=503, content={"status": "internal_routes_disabled"})
+    if not _check_internal_auth(request):
+        return JSONResponse(status_code=401, content={"status": "unauthorized"})
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"status": "invalid_json"})
+    name = str((body or {}).get("name", "")).strip()
+    if not name:
+        return JSONResponse(status_code=400, content={"status": "missing_name"})
+    private = bool(body.get("private", True))
+    facade = str(body.get("facade", "general")) or "general"
+    try:
+        budget = float(body.get("budget_usd", 5.0))
+    except (TypeError, ValueError):
+        budget = 5.0
+    try:
+        from kua_core.provision import provision_repo_project  # noqa: PLC0415
+
+        res = provision_repo_project(name, private=private, facade=facade, budget_usd=budget)
+    except Exception as exc:  # noqa: BLE001
+        log_json("internal_create_project_failed", phase="provision", error=str(exc))
+        return JSONResponse(status_code=502, content={"status": "provision_failed", "error": str(exc)})
+    log_json("internal_create_project", phase="created", slug=res["slug"])
+    return JSONResponse(status_code=200, content={"status": "created", **res})
+
+
 @app.post("/hooks/sentry/{project_id}")
 async def sentry_hook(project_id: str, request: Request) -> JSONResponse:
     raw_body = await request.body()

@@ -105,6 +105,15 @@ def process_run(
     if ctx.budget_usd is None or ctx.budget_usd <= 0:
         return _fail(ctx, "failed", "Run sans budget explicite et positif — refusé (CLAUDE.md règle #2).")
 
+    # GARDE-FOU WORKSPACE (permanent) : le Runner n'agit QUE sur un projet enregistré
+    # ET chargé (workspace=true), même si le token a accès au repo. Refus AVANT tout
+    # checkout/spawn — aucune action sur un repo hors de la liste des projets chargés.
+    if not ctx.workspace:
+        return _fail(
+            ctx, "failed",
+            "Projet hors workspace (non chargé) — le Runner refuse d'agir sur ce repo (garde-fou permanent).",
+        )
+
     checkout = _checkouts_dir(checkouts_dir) / ctx.project_id / ctx.run_id
     try:
         db.update_run(run_id, status="preparing", started_at=_now())
@@ -209,6 +218,11 @@ def _merge_run(run_id: str) -> dict[str, Any]:
         return {"status": "missing"}
     ctx = RunCtx.from_row(row)
     thread_id = ctx.thread_id
+
+    # Garde workspace — défense en profondeur : jamais de fusion sur un projet non chargé.
+    if not ctx.workspace:
+        _terminate(run_id, thread_id, "failed", "Refusé : projet hors workspace (non chargé) — aucune fusion.")
+        return {"status": "refused", "reason": "workspace"}
 
     # Garde moteur (règle 5) — défense en profondeur, indépendante de l'appelant.
     if ctx.is_engine:

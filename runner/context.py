@@ -31,6 +31,7 @@ class RunCtx:
     model: str
     timeout_min: int
     allow_auto: bool = False         # 2e verrou auto (projet) — défaut fail-closed
+    workspace: bool = False          # projet « chargé » — défaut fail-closed (Runner refuse si False)
     config: dict[str, Any] = field(default_factory=dict)
     branch: Optional[str] = None     # rempli après DELIVER
     pr_url: Optional[str] = None     # rempli après DELIVER
@@ -54,6 +55,7 @@ class RunCtx:
             repo_url=row.get("repo_url"),
             default_branch=row.get("default_branch") or "main",
             is_engine=bool(row.get("is_engine")),
+            workspace=bool(row.get("workspace")),
             allow_auto=bool(row.get("allow_auto")),
             autonomy=(row.get("autonomy") or "manual"),
             # PAS de défaut inventé : sans loop, budget None → run refusé (règle #2).

@@ -28,8 +28,8 @@ def _seed_db(project_id: str, bare_path: str) -> tuple[str, str]:
     with db.connect() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO projects (id, name, repo_url, default_branch, plan, is_engine) "
-                "VALUES (%s, %s, %s, 'main', 'base', false)",
+                "INSERT INTO projects (id, name, repo_url, default_branch, plan, is_engine, workspace) "
+                "VALUES (%s, %s, %s, 'main', 'base', false, true)",  # workspace=true : projet chargé
                 (project_id, "Kua Selftest", bare_path),
             )
             cur.execute(

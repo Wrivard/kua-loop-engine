@@ -152,7 +152,7 @@ GET_RUN_CONTEXT_SQL = """
       t.loop_id AS loop_id, t.status AS thread_status,
       p.name AS project_name, p.repo_url AS repo_url,
       p.default_branch AS default_branch, p.is_engine AS is_engine,
-      p.allow_auto AS allow_auto,
+      p.allow_auto AS allow_auto, p.workspace AS workspace,
       l.autonomy AS autonomy, l.budget_usd AS budget_usd, l.model AS model,
       l.timeout_min AS timeout_min, l.max_iterations AS max_iterations, l.config AS config
     FROM runs r
@@ -467,6 +467,72 @@ def get_project_mcp(project_id: str, enabled_only: bool = True) -> list[dict[str
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(sql, (project_id,))
             return cur.fetchall()
+
+
+# ------------------------------------------------------ Projets / workspace (doc 06) ---
+# Un projet « chargé » (workspace=true) est le SEUL sur lequel le Runner agit.
+# `register_project` (création depuis l'engine) le marque chargé d'emblée.
+
+def get_project(project_id: str) -> Optional[dict[str, Any]]:
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT * FROM projects WHERE id = %s", (project_id,))
+            return cur.fetchone()
+
+
+def register_project(
+    project_id: str,
+    name: str,
+    repo_url: str,
+    *,
+    default_branch: str = "main",
+    workspace: bool = False,
+    is_engine: bool = False,
+    allow_auto: bool = False,
+) -> str:
+    """Upsert d'un projet (idempotent sur l'id/slug). Marque `workspace` explicitement.
+    `allow_auto` reste fail-closed par défaut (règle #1)."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO projects (id, name, repo_url, default_branch, is_engine, allow_auto, workspace) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s) "
+                "ON CONFLICT (id) DO UPDATE SET "
+                "  name = EXCLUDED.name, repo_url = EXCLUDED.repo_url, "
+                "  default_branch = EXCLUDED.default_branch, workspace = EXCLUDED.workspace "
+                "RETURNING id",
+                (project_id, name, repo_url, default_branch, is_engine, allow_auto, workspace),
+            )
+            return str(cur.fetchone()[0])
+
+
+def ensure_loop(
+    project_id: str,
+    facade: str,
+    *,
+    autonomy: str = "approve_final",
+    budget_usd: float = 5.0,
+    model: str = "sonnet",
+    timeout_min: int = 30,
+    enabled: bool = True,
+) -> str:
+    """Crée la loop (project_id, facade) si absente (UNIQUE), sinon la retourne.
+    budget_usd > 0 imposé en amont (un run sans budget ne démarre pas — règle #2)."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO loops (project_id, facade, enabled, autonomy, model, budget_usd, timeout_min) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s) "
+                "ON CONFLICT (project_id, facade) DO NOTHING RETURNING id",
+                (project_id, facade, enabled, autonomy, model, budget_usd, timeout_min),
+            )
+            row = cur.fetchone()
+            if row:
+                return str(row[0])
+            cur.execute("SELECT id FROM loops WHERE project_id=%s AND facade=%s", (project_id, facade))
+            return str(cur.fetchone()[0])
 
 
 def get_app_setting(key: str) -> dict[str, Any]:

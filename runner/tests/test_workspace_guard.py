@@ -1,5 +1,8 @@
-"""M5 — garanties de sécurité : un run en échec (budget/timeout/failed/verif) ne
-livre JAMAIS de branche/PR. Bare-local + FakeExecutor (sans coût). Skip si DB injoignable."""
+"""Garde-fou WORKSPACE (permanent) : le Runner n'agit QUE sur un projet enregistré
+ET chargé (workspace=true). Un projet non chargé est REFUSÉ avant tout checkout/spawn,
+même si le repo est parfaitement accessible. Bare-local + FakeExecutor. Skip si DB injoignable.
+
+La SEULE différence entre les deux tests est le flag `workspace` — ça isole la preuve."""
 
 from __future__ import annotations
 
@@ -30,23 +33,24 @@ def _db_reachable() -> bool:
 requires_db = pytest.mark.skipif(not _db_reachable(), reason="DB injoignable — test sauté")
 
 
-def _setup(verify_exit: int = 0):
-    pid = f"kua-failtest-{uuid.uuid4().hex[:8]}"
-    work = Path(tempfile.mkdtemp(prefix="kua-failtest-"))
+def _setup(workspace: bool):
+    """Repo bare local accessible + projet (workspace=param) + loop + thread + run."""
+    pid = f"kua-wsguard-{uuid.uuid4().hex[:8]}"
+    work = Path(tempfile.mkdtemp(prefix="kua-wsguard-"))
     bare = work / "origin.git"
     seed = work / "seed"
     gitops.create_bare(bare)
     gitops.init_new(seed, "main")
     (seed / ".kua").mkdir()
-    (seed / ".kua" / "verify.sh").write_text(f"#!/usr/bin/env bash\nexit {verify_exit}\n", encoding="utf-8")
+    (seed / ".kua" / "verify.sh").write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
     gitops.commit_all(seed, "chore: agent-ready")
     gitops.add_remote(seed, "origin", str(bare))
     gitops.push(seed, "origin", "main")
     with db.connect() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO projects (id, name, repo_url, workspace) VALUES (%s, 'Fail test', %s, true)",
-                (pid, str(bare)),
+                "INSERT INTO projects (id, name, repo_url, workspace) VALUES (%s, 'WS guard', %s, %s)",
+                (pid, str(bare), workspace),
             )
             cur.execute(
                 "INSERT INTO loops (project_id, facade, enabled, autonomy, budget_usd) "
@@ -54,7 +58,7 @@ def _setup(verify_exit: int = 0):
                 (pid,),
             )
             loop_id = str(cur.fetchone()[0])
-    thread_id, run_id = db.create_thread_with_run(pid, loop_id, "general", "Fail test", None, "fais X")
+    thread_id, run_id = db.create_thread_with_run(pid, loop_id, "general", "WS guard", None, "fais X")
     return pid, thread_id, run_id, bare, work
 
 
@@ -74,35 +78,36 @@ def _heads(bare: Path) -> str:
 
 
 @requires_db
-@pytest.mark.parametrize("status", ["budget_exceeded", "timed_out", "failed"])
-def test_run_failure_delivers_nothing(status):
-    pid, _tid, run_id, bare, work = _setup()
+def test_run_refused_when_project_not_loaded():
+    """workspace=false → REFUS avant tout : exécuteur jamais appelé, aucune branche poussée."""
+    pid, _tid, run_id, bare, work = _setup(workspace=False)
+    fake = FakeExecutor()
     try:
         rep = worker.process_run(
-            run_id,
-            executor=FakeExecutor(status=status),
-            deliverer=LocalBareDeliverer(),
-            checkouts_dir=str(work / "checkouts"),
+            run_id, executor=fake, deliverer=LocalBareDeliverer(), checkouts_dir=str(work / "checkouts")
         )
-        assert rep["status"] == status
-        assert db.get_run_context(run_id)["run_status"] == status
-        assert "kua/" not in _heads(bare)  # AUCUNE branche de travail poussée
+        assert rep["status"] == "failed"
+        assert "workspace" in rep["summary"].lower()
+        assert db.get_run_context(run_id)["run_status"] == "failed"
+        # ★ L'exécuteur n'a JAMAIS été invoqué (refus avant le spawn).
+        assert fake.received_goal == ""
+        # ★ Aucune branche de travail poussée — le repo n'a pas été touché.
+        assert "kua/" not in _heads(bare)
     finally:
         _cleanup(pid, work)
 
 
 @requires_db
-def test_verify_failure_delivers_nothing():
-    pid, _tid, run_id, bare, work = _setup(verify_exit=1)  # la gate de vérif échoue
+def test_run_allowed_when_project_loaded():
+    """workspace=true (même repo, même tout) → le run procède normalement."""
+    pid, _tid, run_id, bare, work = _setup(workspace=True)
+    fake = FakeExecutor()
     try:
         rep = worker.process_run(
-            run_id,
-            executor=FakeExecutor(),  # produit une modif, mais la vérif casse
-            deliverer=LocalBareDeliverer(),
-            checkouts_dir=str(work / "checkouts"),
+            run_id, executor=fake, deliverer=LocalBareDeliverer(), checkouts_dir=str(work / "checkouts")
         )
-        assert rep["status"] == "failed"
-        assert db.get_run_context(run_id)["run_status"] == "failed"
-        assert "kua/" not in _heads(bare)
+        assert rep["status"] == "awaiting_approval"
+        assert fake.received_goal != ""        # exécuteur bien appelé
+        assert "kua/" in _heads(bare)           # branche de travail poussée
     finally:
         _cleanup(pid, work)

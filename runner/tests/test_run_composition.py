@@ -69,7 +69,10 @@ def test_run_gets_project_secrets_not_app(tmp_path, monkeypatch):
         # DB : projet + loop + thread + run + connexion projet + bindings + mcp + skill
         with db.connect() as conn:
             with conn.cursor() as cur:
-                cur.execute("INSERT INTO projects (id, name, repo_url) VALUES (%s, 'Comp', %s)", (pid, str(bare)))
+                cur.execute(
+                    "INSERT INTO projects (id, name, repo_url, workspace) VALUES (%s, 'Comp', %s, true)",
+                    (pid, str(bare)),
+                )
                 cur.execute(
                     "INSERT INTO loops (project_id, facade, enabled, autonomy, budget_usd) "
                     "VALUES (%s,'general',true,'approve_final',5) RETURNING id",
