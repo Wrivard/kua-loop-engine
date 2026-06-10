@@ -142,6 +142,7 @@ def claim_queued_run() -> Optional[dict[str, Any]]:
 GET_RUN_CONTEXT_SQL = """
     SELECT
       r.id AS run_id, r.status AS run_status, r.goal AS goal, r.thread_id,
+      r.branch AS branch, r.pr_url AS pr_url,
       t.facade AS facade, t.subject AS subject, t.project_id AS project_id,
       t.loop_id AS loop_id, t.status AS thread_status,
       p.name AS project_name, p.repo_url AS repo_url,

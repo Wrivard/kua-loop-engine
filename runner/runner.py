@@ -96,14 +96,15 @@ def parse_claude_result(stdout: str) -> ClaudeResult:
     )
 
 
-def run_worker() -> None:
-    """Boucle principale du worker — à implémenter (Phase 1).
+def run_worker(*, once: bool = False, poll_interval: float = 5.0) -> None:
+    """Boucle principale du worker (implémentée dans runner.worker).
 
-    Cycle : claim → prepare (checkout) → compile goal → build_claude_command →
-    spawn + capture → parse_claude_result → verify → deliver (PR draft) → gate
-    d'autonomie. Voir docstring du module.
+    Cycle : claim → prepare (checkout) → compile goal → claude -p → verify →
+    deliver (PR draft) → gate d'autonomie + watcher d'approbations.
     """
-    raise NotImplementedError("runner.run_worker : à implémenter (Phase 1)")
+    from runner.worker import run_worker as _run_worker  # import paresseux (évite le cycle)
+
+    _run_worker(once=once, poll_interval=poll_interval)
 
 
 if __name__ == "__main__":

@@ -31,6 +31,8 @@ class RunCtx:
     model: str
     timeout_min: int
     config: dict[str, Any] = field(default_factory=dict)
+    branch: Optional[str] = None     # rempli après DELIVER
+    pr_url: Optional[str] = None     # rempli après DELIVER
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> "RunCtx":
@@ -55,6 +57,8 @@ class RunCtx:
             model=(row.get("model") or "sonnet"),
             timeout_min=int(row.get("timeout_min") or 30),
             config=cfg,
+            branch=row.get("branch"),
+            pr_url=row.get("pr_url"),
         )
 
     @property
