@@ -429,3 +429,49 @@ def list_connections(scope: Optional[str] = None) -> list[dict[str, Any]]:
             else:
                 cur.execute("SELECT * FROM connections ORDER BY scope, type")
             return cur.fetchall()
+
+
+# --- Bindings par projet (lecture, pour la composition) ---
+
+def get_project_connectors(project_id: str, enabled_only: bool = True) -> list[dict[str, Any]]:
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    sql = "SELECT * FROM project_connectors WHERE project_id=%s"
+    if enabled_only:
+        sql += " AND enabled = true"
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(sql, (project_id,))
+            return cur.fetchall()
+
+
+def get_project_skills(project_id: str, enabled_only: bool = True) -> list[dict[str, Any]]:
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    sql = "SELECT * FROM project_skills WHERE project_id=%s"
+    if enabled_only:
+        sql += " AND enabled = true"
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(sql, (project_id,))
+            return cur.fetchall()
+
+
+def get_project_mcp(project_id: str, enabled_only: bool = True) -> list[dict[str, Any]]:
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    sql = "SELECT * FROM project_mcp WHERE project_id=%s"
+    if enabled_only:
+        sql += " AND enabled = true"
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(sql, (project_id,))
+            return cur.fetchall()
+
+
+def get_app_setting(key: str) -> dict[str, Any]:
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT value FROM app_settings WHERE key=%s", (key,))
+            row = cur.fetchone()
+            return (row[0] if row and isinstance(row[0], dict) else {}) or {}

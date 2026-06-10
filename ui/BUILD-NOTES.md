@@ -94,6 +94,40 @@ Trois couches, dont 2 déjà en place :
 ce sont des secrets **backend** (`/srv/kua/.env`). Les déclarer (Production + Preview), redeploy, et
 l'app exige le login + la RLS protège les données.
 
+## Connecteurs / Skills / Modèles (modèle global↔projet)
+- **Catalogue** = registre en code `kua_core/connectors.py` (source de vérité ; l'UI le **mirroir**
+  dans `ui/lib/connectors.ts` jusqu'à ce qu'une API l'expose). Chaque type : champs (secret|config),
+  `kind` (api|mcp), `shareable` (github) vs `per_project` (sentry/cloudflare/supabase/discord), + mcp générique.
+- **DB** (migration 004) : `connections` (scope app|project, config NON-secrète + `secret_ref`, statut),
+  `project_connectors` (binding : enabled + mode inherit|own), `project_skills`, `project_mcp`, `app_settings`.
+  RLS authenticated-only (comme 002). **Aucun secret en DB.**
+- **Secrets** : `kua_core/secrets.py` → `/srv/kua/secrets/{app.env | project/<id>.env}` (chmod 600),
+  clés préfixées par type. La DB ne garde que `secret_ref`.
+
+### Réel vs simulé (aujourd'hui)
+- ✅ **Réel** : migration + RLS appliquées ; registre + validateurs (github/cloudflare/sentry/discord) ;
+  CLI `kua connector set/test/list` (écrit le secret + valide + fixe le statut) ; Settings (Apparence locale,
+  Modèles ⇄ `loops.model`, Connecteurs catalogue + statut, Skills globaux) ; bindings par projet (drawer) ;
+  composition `kua_core/composition.py` (+ tests).
+- 🟡 **Simulé / via CLI pour l'instant** : **saisie des secrets dans l'UI** + bouton **« Tester »** depuis
+  l'UI → exigent la **gateway exposée** (l'UI n'a pas accès aux secrets ni au validateur). En attendant :
+  la CLI (commande affichée dans l'UI). Le test/statut se met à jour via `kua connector test`.
+
+### Frontière de sécurité (vérifiée par test)
+Un run `claude -p` d'un projet ne reçoit QUE ses creds : `compose_project_context(project_id)` renvoie
+`mcp` + `skills` + `secret_refs` **de scope projet uniquement** (`project/<id>.env`), **jamais `app.env`**
+(test `test_compose_never_includes_app_creds`). Un connecteur *shareable* en `inherit` (github) est utilisé
+par le **Runner** hors du run (push/PR), jamais injecté dans l'env du `claude -p` (cohérent avec l'`clean_env`
+de l'exécuteur qui retire déjà les secrets backend).
+
+### Reste à faire
+1. **Saisie des secrets + bouton « Tester » depuis l'UI** : quand la gateway exposera un endpoint sécurisé
+   (le navigateur n'écrit jamais dans `/srv/kua/secrets/`).
+2. **Branchement de la composition dans le spawn** `claude -p` (prochaine loop) : charger `secret_refs`
+   (projet) dans l'env du run + écrire le `.mcp.json` composé dans le checkout + activer les skills.
+   La fonction est isolée et testée ; le cœur durci du Runner n'a PAS été touché.
+3. Validateurs supabase/mcp (actuellement `untested`).
+
 ## État par écran
 Légende : ✅ FAIT · 🟡 PARTIEL · ⬜ À FAIRE
 
