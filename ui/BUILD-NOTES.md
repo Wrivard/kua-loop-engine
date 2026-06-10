@@ -183,7 +183,8 @@ Bring-live du bouton : voir le **Runbook bring-live (consolidé)** ci-dessous.
 **Toujours-actif** : le backend doit tourner en permanence (j'utilise l'app du cell, loin du desktop).
 Les units systemd sont durcies (`Restart=always`, démarrage au boot, `NoNewPrivileges`, `ProtectSystem=full`,
 `kua-engine` jamais root) : `kua-gateway` (8000), `kua-worker` (boucle Runner), `kua-mcp-bridge` (8001).
-**Fichiers seulement — RIEN n'est activé** (l'`enable`/`start` = sudo, au bring-live).
+**Phase 1 bring-live FAITE** (avec William) : les 3 services sont installés, `enabled` et `running` ;
+`/health` = gateway/db/worker/mcp_bridge `up`. Reste Phase 2 (DNS+Caddy) et Phase 3 (env Vercel).
 
 **Santé** : la gateway expose `GET /health` (public, aucun secret) → `{status, version, uptime, paused,
 services:{gateway, db, worker, mcp_bridge}}`. Le worker rafraîchit un heartbeat (~10s, thread daemon) →
@@ -194,6 +195,33 @@ authentifié) ; tant que l'engine n'est pas exposé → « gateway non joignable
 Le worker le vérifie **dans le claim SQL** (atomique) → en pause, AUCUN nouveau run réclamé ; les runs en
 cours finissent ; approbations/merges continuent. Le toggle UI écrit le flag **via Supabase** → **marche
 tout de suite, sans la gateway**. PAS de `systemctl` depuis le web (le web ne touche jamais aux services).
+
+**Contrôle & debug (voir/redémarrer/déboguer depuis l'app, sans SSH)** — tout passe par des endpoints
+gateway `bearer INTERNAL_TOKEN` (proxy Next `/api/system/*`, jamais le token dans le navigateur) :
+- **Logs** : `/internal/logs?service=&lines=` → `journalctl -u <service>` (LECTURE SEULE). Viewer par service.
+- **Contrôle** : `/internal/control {service, action}` → `sudo -n systemctl <action> <service>` via une **allowlist
+  sudoers STRICTE** (3 services × {start,stop,restart,status}, rien d'autre). Boutons start/stop/restart ;
+  redémarrer la gateway elle-même = planifié en tâche de fond (réponse AVANT le kill) + l'UI re-poll `/health`.
+- **Debug** : assistant chat `claude -p` (plan Max, **pas de clé API**) qui lit diagnostics (df/free/uptime/
+  pip check + journaux + /health) et **propose UNE action** (`restart_service` d'un des 3 / `reinstall_dep`
+  d'une dep ÉPINGLÉE) **re-validée contre l'allowlist** ; William **confirme** avant exécution. Audit JSON.
+- Sécurité : `app/sysctl.py` valide AVANT toute exécution (argv direct, jamais `shell=True`), kua-engine jamais
+  root. Seules élévations : la ligne sudoers (3 services) + le groupe `systemd-journal` (lecture).
+
+**Commandes sudo à appliquer par William** (une fois — l'agent ne fait QUE les fichiers) :
+```bash
+# 1) Allowlist sudoers stricte (start/stop/restart/status des 3 services, NOPASSWD)
+command -v systemctl                       # vérifier le chemin (souvent /usr/bin/systemctl)
+sudo cp deploy/10-kua-sysctl.sudoers /etc/sudoers.d/10-kua-sysctl
+sudo chmod 440 /etc/sudoers.d/10-kua-sysctl
+sudo visudo -c                             # valide la syntaxe de tout le sudoers
+
+# 2) Lecture des logs : ajouter kua-engine au groupe systemd-journal, puis recharger le process
+sudo usermod -aG systemd-journal kua-engine
+sudo systemctl restart kua-gateway         # le process gateway récupère le nouveau groupe
+```
+(Le panneau « Système » s'allume vraiment côté UI après la Phase 3 — env Vercel `GATEWAY_INTERNAL_URL`
++ `INTERNAL_TOKEN`. Le `reinstall_dep` tourne en `pip` du venv kua-engine, **sans sudo**.)
 
 ## Runbook bring-live (consolidé)
 

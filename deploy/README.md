@@ -11,6 +11,8 @@ S1–S5 ne sont pas verts.
 - `hermes-gateway.service` — Hermes (Discord + cron). Ajuster `ExecStart` au
   chemin réel du binaire après installation.
 - `Caddyfile` — reverse proxy TLS `hooks.kua.quebec` + `engine.kua.quebec` → gateway/bridge.
+- `10-kua-sysctl.sudoers` — allowlist sudoers STRICTE (panneau Système) : kua-engine peut
+  start/stop/restart/status UNIQUEMENT les 3 services kua. → `/etc/sudoers.d/10-kua-sysctl` (William).
 - `docker-compose.yml` — placeholder sandbox d'exécution durci (doc 13).
 
 Toutes les units : `Restart=always`, démarrage au boot (`WantedBy=multi-user.target`),

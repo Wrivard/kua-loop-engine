@@ -1,0 +1,22 @@
+# /etc/sudoers.d/10-kua-sysctl — allowlist STRICTE pour le panneau Réglages « Système ».
+#
+# kua-engine peut UNIQUEMENT start/stop/restart/status les 3 services kua, sans mot de
+# passe. RIEN d'autre : aucun wildcard, aucun shell, aucune autre commande. C'est la SEULE
+# élévation sudo accordée à kua-engine.
+#
+# INSTALLATION (William, une fois) :
+#   command -v systemctl            # vérifier le chemin (souvent /usr/bin/systemctl)
+#   sudo cp deploy/10-kua-sysctl.sudoers /etc/sudoers.d/10-kua-sysctl
+#   sudo chmod 440 /etc/sudoers.d/10-kua-sysctl
+#   sudo visudo -c                  # valide la syntaxe de TOUT le sudoers
+# (Si `command -v systemctl` ≠ /usr/bin/systemctl, remplacer le chemin ci-dessous d'abord.)
+#
+# Le gateway lance `sudo -n systemctl <action> <service>` (argv direct, jamais shell) ;
+# sudo résout `systemctl` via secure_path et compare au chemin + args EXACTS ci-dessous.
+
+Cmnd_Alias KUA_SYSCTL = \
+  /usr/bin/systemctl start kua-gateway,   /usr/bin/systemctl stop kua-gateway,   /usr/bin/systemctl restart kua-gateway,   /usr/bin/systemctl status kua-gateway, \
+  /usr/bin/systemctl start kua-worker,    /usr/bin/systemctl stop kua-worker,    /usr/bin/systemctl restart kua-worker,    /usr/bin/systemctl status kua-worker, \
+  /usr/bin/systemctl start kua-mcp-bridge, /usr/bin/systemctl stop kua-mcp-bridge, /usr/bin/systemctl restart kua-mcp-bridge, /usr/bin/systemctl status kua-mcp-bridge
+
+kua-engine ALL=(root) NOPASSWD: KUA_SYSCTL
