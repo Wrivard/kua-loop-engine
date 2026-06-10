@@ -24,12 +24,10 @@ class TargetSpec:
 
 
 def resolve_target(ctx: RunCtx) -> TargetSpec:
+    # 100% data-driven : on ne regarde QUE repo_url + config, jamais le NOM de façade
+    # (la commodité « facade=new_project » est traduite en amont en config.new_project).
     repo = (ctx.repo_url or "").strip()
-    is_new = (
-        ctx.facade == "new_project"
-        or bool(ctx.config.get("new_project"))
-        or repo.lower() in _NEW_MARKERS
-    )
+    is_new = bool(ctx.config.get("new_project")) or repo.lower() in _NEW_MARKERS
     base = ctx.default_branch or "main"
     slug = re.sub(r"[^a-z0-9]+", "-", (ctx.facade or "run").lower()).strip("-") or "run"
     work_branch = f"kua/{slug}/{ctx.run_short}"

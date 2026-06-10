@@ -27,12 +27,14 @@ class RunCtx:
     default_branch: str
     is_engine: bool
     autonomy: str          # manual | approve_final | auto
-    budget_usd: Decimal
+    budget_usd: Optional[Decimal]    # None si aucune loop → run REFUSÉ (règle #2)
     model: str
     timeout_min: int
+    allow_auto: bool = False         # 2e verrou auto (projet) — défaut fail-closed
     config: dict[str, Any] = field(default_factory=dict)
     branch: Optional[str] = None     # rempli après DELIVER
     pr_url: Optional[str] = None     # rempli après DELIVER
+    delivered_sha: Optional[str] = None  # SHA livré/reviewé (anti-TOCTOU)
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> "RunCtx":
@@ -52,13 +54,16 @@ class RunCtx:
             repo_url=row.get("repo_url"),
             default_branch=row.get("default_branch") or "main",
             is_engine=bool(row.get("is_engine")),
+            allow_auto=bool(row.get("allow_auto")),
             autonomy=(row.get("autonomy") or "manual"),
-            budget_usd=Decimal(str(row.get("budget_usd") if row.get("budget_usd") is not None else "5")),
+            # PAS de défaut inventé : sans loop, budget None → run refusé (règle #2).
+            budget_usd=(Decimal(str(row["budget_usd"])) if row.get("budget_usd") is not None else None),
             model=(row.get("model") or "sonnet"),
             timeout_min=int(row.get("timeout_min") or 30),
             config=cfg,
             branch=row.get("branch"),
             pr_url=row.get("pr_url"),
+            delivered_sha=row.get("delivered_sha"),
         )
 
     @property

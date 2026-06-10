@@ -99,14 +99,31 @@ def cmd_decide(run_id: str, decision: str, comment: str | None) -> int:
     from kua_core import db
     from runner import worker
 
-    with db.connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO approvals (run_id, decision, decided_by, comment) VALUES (%s, %s, 'cli', %s)",
-                (run_id, decision, comment),
-            )
+    ctx = db.get_run_context(run_id)
+    if not ctx:
+        print(f"kua {decision} : run introuvable {run_id}", file=sys.stderr)
+        return 1
+    if ctx.get("run_status") != "awaiting_approval":
+        print(
+            f"kua {decision} : le run n'est pas en attente de décision (statut={ctx.get('run_status')})",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        with db.connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO approvals (run_id, decision, decided_by, comment) VALUES (%s, %s, 'cli', %s)",
+                    (run_id, decision, comment),
+                )
+    except Exception as exc:  # noqa: BLE001
+        print(f"kua {decision} : échec de l'enregistrement — {exc}", file=sys.stderr)
+        return 1
     acted = [r for r in worker.process_approvals() if r["run_id"] == run_id]
-    print(f"décision '{decision}' enregistrée pour {run_id} → {acted or 'en file'}")
+    if not acted:
+        print(f"kua {decision} : décision enregistrée mais non appliquée", file=sys.stderr)
+        return 1
+    print(f"décision '{decision}' appliquée pour {run_id} → {acted[0].get('status')}")
     return 0
 
 

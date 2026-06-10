@@ -6,6 +6,7 @@ travail (la livraison/merge passe par une décision d'approbation, doc 06/§gate
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -19,6 +20,26 @@ class GitError(RuntimeError):
     pass
 
 
+def _git_env() -> dict[str, str]:
+    # Jamais d'invite interactive : sur un repo privé sans creds, échoue VITE au
+    # lieu de bloquer le worker indéfiniment.
+    return {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "echo"}
+
+
+def _auth_args() -> list[str]:
+    """Injecte l'auth GitHub via un en-tête éphémère (pas dans l'URL/les logs).
+    Backend only : GITHUB_TOKEN vit dans /srv/kua/.env."""
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        return []
+    return ["-c", f"http.https://github.com/.extraheader=AUTHORIZATION: bearer {token}"]
+
+
+def _mask(text: str) -> str:
+    token = os.environ.get("GITHUB_TOKEN")
+    return text.replace(token, "***") if token else text
+
+
 def _run(args: list[str], cwd: Optional[Path | str] = None, timeout: int = 300) -> str:
     proc = subprocess.run(
         ["git", *args],
@@ -26,9 +47,11 @@ def _run(args: list[str], cwd: Optional[Path | str] = None, timeout: int = 300) 
         capture_output=True,
         text=True,
         timeout=timeout,
+        env=_git_env(),
     )
     if proc.returncode != 0:
-        raise GitError(f"git {' '.join(args)} (cwd={cwd}) -> {proc.returncode}: {proc.stderr.strip()}")
+        # Masque le token au cas où il apparaîtrait dans les args (extraheader).
+        raise GitError(_mask(f"git {' '.join(args)} (cwd={cwd}) -> {proc.returncode}: {proc.stderr.strip()}"))
     return proc.stdout
 
 
@@ -38,7 +61,7 @@ def configure_identity(cwd: Path | str) -> None:
 
 
 def clone(repo_url: str, dest: Path | str, branch: Optional[str] = None) -> None:
-    args = ["clone"]
+    args = [*_auth_args(), "clone"]
     if branch:
         args += ["--branch", branch]
     args += [repo_url, str(dest)]
@@ -83,6 +106,14 @@ def current_branch(cwd: Path | str) -> str:
     return _run(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd).strip()
 
 
+def head_sha(cwd: Path | str) -> str:
+    return _run(["rev-parse", "HEAD"], cwd=cwd).strip()
+
+
+def fetch(cwd: Path | str, remote: str, ref: str) -> None:
+    _run([*_auth_args(), "fetch", remote, ref], cwd=cwd, timeout=600)
+
+
 def has_changes(cwd: Path | str) -> bool:
     return bool(_run(["status", "--porcelain"], cwd=cwd).strip())
 
@@ -106,4 +137,4 @@ def diff_stat(cwd: Path | str, base: str) -> str:
 
 
 def push(cwd: Path | str, remote: str, branch: str) -> None:
-    _run(["push", remote, branch], cwd=cwd, timeout=600)
+    _run([*_auth_args(), "push", remote, branch], cwd=cwd, timeout=600)

@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from runner.env import clean_env
+
 
 @dataclass
 class VerifyResult:
@@ -32,6 +34,9 @@ def _run_cmd(cmd, cwd: Path, timeout: int) -> tuple[int, str]:
         text=True,
         timeout=timeout,
         shell=isinstance(cmd, str),
+        # Code 100 % contrôlé par le repo cible → JAMAIS les secrets backend
+        # (ni même l'auth Claude). Voir runner/env.py + CLAUDE.md règle #4.
+        env=clean_env(also_remove=("ANTHROPIC_API_KEY",)),
     )
     return proc.returncode, (proc.stdout + proc.stderr)[-4000:]
 

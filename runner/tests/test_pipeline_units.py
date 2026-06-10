@@ -47,10 +47,15 @@ def test_target_existing():
 
 @pytest.mark.parametrize(
     "kw",
-    [{"repo_url": ""}, {"repo_url": "new"}, {"facade": "new_project"}, {"config": {"new_project": True}}],
+    [{"repo_url": ""}, {"repo_url": "new"}, {"config": {"new_project": True}}],
 )
 def test_target_new(kw):
     assert resolve_target(_ctx(**kw)).mode == "new"
+
+
+def test_target_facade_name_does_not_force_new():
+    # Le NOM de façade ne doit JAMAIS piloter existant/nouveau (agnostique).
+    assert resolve_target(_ctx(facade="new_project", repo_url="github.com/o/r")).mode == "existing"
 
 
 def test_target_branch_slug_is_safe():

@@ -22,6 +22,27 @@
   awaiting_approval (verify passed) → approved → merge dans `main` → `pushed`. **48 tests verts.**
 - **Déclencheur UI** : créer une conversation (« + Nouvelle ») insère un run(queued).
 
+## Revue adversariale (appliquée)
+Workflow `runner-review` (6 dimensions × vérification indépendante) : **32 trouvailles brutes →
+28 confirmées → 28 corrigées**. Durcissements clés :
+- **`auto` à double verrou** : exige `loops.autonomy=auto` **ET** `projects.allow_auto` **ET** non-moteur
+  **ET** vérif passée (migration 003 + règle #1). `allow_auto` défaut FALSE (fail-closed).
+- **Budget fail-closed** : un run sans budget explicite et positif est REFUSÉ avant tout spawn (règle #2) ;
+  `loops.yaml` et la table `loops` rejettent budget ≤ 0.
+- **Anti-double-merge / anti-race** : claim atomique `awaiting_approval→merging` ; advisory lock par
+  (project,facade) sur le claim des runs queued ; redo/rejected sous claim atomique.
+- **Merge fail-closed** : `_merge_run` re-vérifie is_engine + approbation, fusionne le **SHA reviewé**
+  (`delivered_sha`, anti-TOCTOU « approve A / merge B »), gère conflit/échec (abort + run failed).
+- **Résilience daemon** : process_approvals et la boucle survivent à toute exception ; **reaper** des runs
+  orphelins (worker mort) ; `_fail` best-effort (jamais de run bloqué).
+- **Secrets** : `claude -p` et la gate de vérif tournent avec un env SANS secrets backend
+  (`runner/env.py`) ; git n'invite jamais (GIT_TERMINAL_PROMPT=0) et s'authentifie par en-tête éphémère
+  (token masqué dans les logs).
+- **Agnostique renforcé** : `loops.yaml` accepte une façade libre (slug) ; `load_goal_template` et
+  `resolve_target` ne hard-codent plus aucun nom de façade.
+- **Timeout dur** : `--kill-after=30s` + garde Python (kill du groupe de process).
+- **Ménage** : checkout supprimé en `finally` (plus d'accumulation disque).
+
 ## Comment déclencher un run de test
 ```bash
 cd /home/kua-engine/kua-loop-engine

@@ -37,11 +37,13 @@ RÈGLES :
 
 
 def load_goal_template(facade: str) -> str:
-    """Charge le gabarit de goal d'une façade depuis runner/goals/{facade}.md."""
+    """Gabarit de preset OPTIONNEL pour une façade (runner/goals/{facade}.md).
+
+    Chaîne vide si absent (façade libre / general / new_project) — le Runner reste
+    AGNOSTIQUE : aucun hard-fail par façade. Le goal arrive déjà composé en amont
+    (cf. runner/goal.compile_goal)."""
     path = GOALS_DIR / f"{facade}.md"
-    if not path.exists():
-        raise FileNotFoundError(f"Gabarit de goal introuvable pour la façade : {facade}")
-    return path.read_text(encoding="utf-8")
+    return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
 def build_claude_command(
@@ -57,7 +59,9 @@ def build_claude_command(
     `--max-budget-usd` (natif). PAS de `--max-turns` (n'existe plus en 2.1.170).
     """
     return [
-        "timeout", f"{timeout_min}m",
+        # --kill-after : escalade en SIGKILL 30s après le SIGTERM si claude/enfants
+        # ignorent le signal → garantit le respect du plafond temps.
+        "timeout", "--kill-after=30s", f"{timeout_min}m",
         "claude", "-p", goal,
         "--output-format", "json",
         "--max-budget-usd", str(budget_usd),
@@ -76,6 +80,7 @@ class ClaudeResult:
     num_turns: int
     session_id: Optional[str]
     stop_reason: Optional[str]
+    terminal_reason: Optional[str] = None  # signal structuré (ex. coupe budget)
 
     @property
     def succeeded(self) -> bool:
@@ -93,6 +98,7 @@ def parse_claude_result(stdout: str) -> ClaudeResult:
         num_turns=int(d.get("num_turns", 0)),
         session_id=d.get("session_id"),
         stop_reason=d.get("stop_reason"),
+        terminal_reason=d.get("terminal_reason"),
     )
 
 

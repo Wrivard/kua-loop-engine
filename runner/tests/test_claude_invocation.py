@@ -34,13 +34,20 @@ _REAL_OUTPUT = json.dumps(
 
 def test_build_command_uses_verified_flags():
     cmd = build_claude_command("fais X", model="sonnet", budget_usd=5, timeout_min=30)
-    assert cmd[:2] == ["timeout", "30m"]
+    assert cmd[0] == "timeout"
+    assert "--kill-after=30s" in cmd and "30m" in cmd  # SIGKILL de secours
     assert "claude" in cmd and "-p" in cmd
     # Flag de budget natif présent ; --max-turns ABSENT (n'existe plus).
     assert "--max-budget-usd" in cmd
     assert "--max-turns" not in cmd
     assert cmd[cmd.index("--output-format") + 1] == "json"
     assert cmd[cmd.index("--model") + 1] == "sonnet"
+
+
+def test_load_goal_template_optional_for_free_facade():
+    # Agnostique : une façade sans gabarit ne hard-fail PAS (chaîne vide).
+    assert load_goal_template("general") == ""
+    assert load_goal_template("nimporte_quoi") == ""
 
 
 def test_parse_real_output():

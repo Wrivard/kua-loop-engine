@@ -1,16 +1,21 @@
-"""Worker du Runner (doc 06) — le pipeline d'un run + le watcher d'approbations.
+"""Worker du Runner (doc 06) — pipeline d'un run + watcher d'approbations.
 
-Cycle (agnostique au type de loop) :
-  claim → prepare (checkout isolé) → compile (goal libre + CLAUDE.md + règles) →
-  run (claude -p, budget+timeout) → ensure-commit → verify-gate →
-  deliver (push branche + PR draft) → gate d'autonomie.
+Cycle (agnostique) : claim → prepare (checkout isolé) → compile → run (claude/Fake)
+→ ensure-commit → verify-gate → deliver (push branche + PR draft) → gate d'autonomie.
 
-Garde-fous : budget/timeout → échec PROPRE sans PR ; JAMAIS de merge/push sur la
-branche de base sans une ligne `approvals` (sauf autonomy=auto, hors moteur).
+Garde-fous (revue adversariale) :
+- Budget absent/≤0 → run REFUSÉ avant tout spawn (règle #2).
+- `auto` exige loop=auto ET projet.allow_auto ET non-moteur ET vérif passée (règle #1).
+- _merge_run est fail-closed et autonome : re-vérifie is_engine + approbation, fusionne le
+  SHA REVIEWÉ (anti-TOCTOU), claim atomique anti-double-merge, échec git → run failed propre.
+- process_approvals et la boucle survivent à toute exception (jamais de poison loop).
+- Reaper : un worker mort laisse un run actif → libéré après un délai.
 """
 
 from __future__ import annotations
 
+import logging
+import os
 import shutil
 import tempfile
 import time
@@ -28,15 +33,14 @@ from runner.goal import compile_goal
 from runner.target import resolve_target
 from runner.verify import run_verify_gate
 
+logger = logging.getLogger("kua.runner")
+
+# Délai au-delà duquel un run actif (preparing/running/verifying) est jugé orphelin.
+ORPHAN_GRACE_MIN = int(os.environ.get("KUA_ORPHAN_GRACE_MIN", "60"))
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _checkouts_dir(override: Optional[str]) -> Path:
-    base = Path(override) if override else Path(get_settings_safe("checkouts_dir", "/srv/kua/checkouts"))
-    base.mkdir(parents=True, exist_ok=True)
-    return base
 
 
 def get_settings_safe(attr: str, default: str) -> str:
@@ -46,8 +50,13 @@ def get_settings_safe(attr: str, default: str) -> str:
         return default
 
 
+def _checkouts_dir(override: Optional[str]) -> Path:
+    base = Path(override) if override else Path(get_settings_safe("checkouts_dir", "/srv/kua/checkouts"))
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
 def _write_log(run_id: str, content: str) -> Optional[str]:
-    """Écrit le log brut du run (best-effort : ne casse pas si le dossier manque)."""
     try:
         log_dir = Path(get_settings_safe("log_dir", "/var/log/kua"))
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -59,9 +68,20 @@ def _write_log(run_id: str, content: str) -> Optional[str]:
 
 
 def _fail(ctx: RunCtx, status: str, summary: str, log_path: Optional[str] = None) -> dict[str, Any]:
-    db.update_run(ctx.run_id, status=status, summary=summary, finished_at=_now(), log_path=log_path)
-    db.set_thread_status(ctx.thread_id, "failed")
-    db.post_message(ctx.thread_id, "agent", f"Échec du run ({status}) : {summary}", run_id=ctx.run_id)
+    """Marque un run en échec — DÉFENSIF : chaque écriture est best-effort pour ne
+    jamais laisser un run bloqué, même si la DB est transitoirement indisponible."""
+    try:
+        db.update_run(ctx.run_id, status=status, summary=summary, finished_at=_now(), log_path=log_path)
+    except Exception:
+        logger.exception("kua: _fail update_run a échoué run_id=%s", ctx.run_id)
+    try:
+        db.set_thread_status(ctx.thread_id, "failed")
+    except Exception:
+        logger.exception("kua: _fail set_thread_status a échoué thread_id=%s", ctx.thread_id)
+    try:
+        db.post_message(ctx.thread_id, "agent", f"Échec du run ({status}) : {summary}", run_id=ctx.run_id)
+    except Exception:
+        logger.exception("kua: _fail post_message a échoué thread_id=%s", ctx.thread_id)
     return {"status": status, "summary": summary}
 
 
@@ -72,16 +92,18 @@ def process_run(
     deliverer: Optional[Deliverer] = None,
     checkouts_dir: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Exécute UN run de bout en bout. Retourne un rapport. Robuste : toute
-    exception inattendue marque le run `failed` au lieu de le laisser bloqué."""
+    """Exécute UN run de bout en bout. Robuste : toute exception → run failed."""
     row = db.get_run_context(run_id)
     if not row:
         return {"status": "missing", "run_id": run_id}
     ctx = RunCtx.from_row(row)
-    checkout = _checkouts_dir(checkouts_dir) / ctx.project_id / ctx.run_id
 
+    # Garde-fou #2 : un run sans budget explicite et positif ne démarre PAS.
+    if ctx.budget_usd is None or ctx.budget_usd <= 0:
+        return _fail(ctx, "failed", "Run sans budget explicite et positif — refusé (CLAUDE.md règle #2).")
+
+    checkout = _checkouts_dir(checkouts_dir) / ctx.project_id / ctx.run_id
     try:
-        # --- annonce + carte de run pour l'UI ---
         db.update_run(run_id, status="preparing", started_at=_now())
         db.set_thread_status(ctx.thread_id, "working")
         db.post_message(ctx.thread_id, "agent", f"Je lance un run : {ctx.goal[:160]}")
@@ -96,32 +118,23 @@ def process_run(
             gitops.clone(target.repo_url, checkout, target.base_branch)
         else:
             gitops.init_new(checkout, target.base_branch)
-            if ctx.repo_url and ctx.repo_url.strip() not in ("", "-", "new", "none", "tbd", "n/a"):
+            if ctx.repo_url and ctx.repo_url.strip().lower() not in ("", "-", "new", "none", "tbd", "n/a"):
                 gitops.add_remote(checkout, "origin", ctx.repo_url)
         gitops.checkout_new_branch(checkout, target.work_branch)
 
         # --- COMPILE ---
         goal = compile_goal(ctx, checkout)
 
-        # --- RUN (claude -p ou Fake) ---
+        # --- RUN ---
         db.update_run(run_id, status="running")
         ex = executor or ClaudeExecutor()
-        result = ex.run(
-            checkout, goal, budget_usd=ctx.budget_usd, timeout_min=ctx.timeout_min, model=ctx.model
-        )
+        result = ex.run(checkout, goal, budget_usd=ctx.budget_usd, timeout_min=ctx.timeout_min, model=ctx.model)
         log_path = _write_log(run_id, result.raw)
-        db.update_run(
-            run_id,
-            cost_usd=result.cost_usd,
-            iterations=result.iterations,
-            summary=result.summary,
-            log_path=log_path,
-        )
+        db.update_run(run_id, cost_usd=result.cost_usd, iterations=result.iterations, summary=result.summary, log_path=log_path)
         if not result.ok:
-            # budget_exceeded / timed_out / failed → échec propre, AUCUNE PR.
-            return _fail(ctx, result.status, result.summary, log_path)
+            return _fail(ctx, result.status, result.summary, log_path)  # budget/timeout/échec → AUCUNE PR
 
-        # --- ensure-commit (fallback si claude n'a pas committé) ---
+        # --- ensure-commit + détection « aucun changement » ---
         gitops.commit_all(checkout, f"kua: {(ctx.subject or ctx.goal)[:60]}")
         if gitops.commits_ahead(checkout, target.base_branch) == 0:
             return _fail(ctx, "failed", "Aucun changement produit par le run.", log_path)
@@ -132,28 +145,31 @@ def process_run(
         if vr.status == "failed":
             return _fail(ctx, "failed", f"Gate de vérif échouée ({vr.command}).", log_path)
 
-        # --- DELIVER (push branche + PR draft) ---
+        # --- DELIVER (push branche + PR draft) ; pin du SHA reviewé (anti-TOCTOU) ---
+        delivered_sha = gitops.head_sha(checkout)
         dlv = deliverer or make_deliverer(ctx)
         dr = dlv.deliver(checkout, target.work_branch, target.base_branch, ctx)
         db.update_run(
             run_id,
             status="awaiting_approval",
             branch=target.work_branch,
-            pr_url=dr.pr_url,
+            pr_url=dr.pr_url or None,
+            delivered_sha=delivered_sha,
             finished_at=_now(),
         )
         db.set_thread_status(ctx.thread_id, "awaiting_approval")
         cost = f"{result.cost_usd:.4f} $" if result.cost_usd else "0 $"
-        db.post_message(
-            ctx.thread_id,
-            "agent",
-            f"Fait. PR : {dr.pr_url}\nCoût : {cost} · vérif : {vr.status} · branche : {target.work_branch}",
-            run_id=run_id,
-        )
+        if dr.pr_url:
+            msg = f"Fait. PR : {dr.pr_url}\nCoût : {cost} · vérif : {vr.status} · branche : {target.work_branch}"
+        else:
+            msg = (
+                f"Fait — branche {target.work_branch} poussée. ⚠️ PR à créer manuellement "
+                f"(échec API). Coût : {cost} · vérif : {vr.status}"
+            )
+        db.post_message(ctx.thread_id, "agent", msg, run_id=run_id)
 
-        # --- GATE d'autonomie ---
-        if ctx.autonomy == "auto" and not ctx.is_engine:
-            # auto = pas de gate humaine (derrière flag par loop ET projet, jamais le moteur).
+        # --- GATE d'autonomie : auto = loop=auto ET projet.allow_auto ET non-moteur ET vérif passée ---
+        if ctx.autonomy == "auto" and ctx.allow_auto and not ctx.is_engine and vr.status == "passed":
             return _merge_run(run_id) | {"auto": True}
 
         return {
@@ -163,74 +179,164 @@ def process_run(
             "cost_usd": str(result.cost_usd),
             "verify": vr.status,
         }
-    except Exception as exc:  # filet de sécurité : jamais de run bloqué en running
+    except Exception as exc:
         return _fail(ctx, "failed", f"Erreur interne du Runner : {type(exc).__name__}: {exc}")
+    finally:
+        shutil.rmtree(checkout, ignore_errors=True)  # ménage : pas d'accumulation disque
 
 
 def _merge_run(run_id: str) -> dict[str, Any]:
-    """Fusionne la branche approuvée dans la base et publie (clone frais → merge →
-    push base). N'est appelé qu'après une décision `approved` (ou autonomy=auto)."""
+    """Fusionne la branche APPROUVÉE dans la base et publie. Fail-closed et autonome :
+    claim atomique (anti-double-merge) + re-vérif moteur/approbation + fusion du SHA reviewé."""
+    # Claim atomique : un seul appelant passe awaiting_approval → merging.
+    if not db.claim_run_for_status(run_id, "awaiting_approval", "merging"):
+        return {"status": "already_handled", "run_id": run_id}
     row = db.get_run_context(run_id)
     if not row:
         return {"status": "missing"}
     ctx = RunCtx.from_row(row)
+    thread_id = ctx.thread_id
+
+    # Garde moteur (règle 5) — défense en profondeur, indépendante de l'appelant.
+    if ctx.is_engine:
+        _terminate(run_id, thread_id, "failed", "Refusé : le moteur ne se fusionne jamais via ce chemin (règle 5).")
+        return {"status": "refused", "reason": "engine"}
+
+    # Ré-validation de l'autorisation : approbation 'approved' OU auto autorisé.
+    appr = db.latest_approval(run_id)
+    authorized = (appr is not None and appr.get("decision") == "approved") or (
+        ctx.autonomy == "auto" and ctx.allow_auto
+    )
+    if not authorized:
+        _terminate(run_id, thread_id, "failed", "Refusé : aucune autorisation valide pour la fusion.")
+        return {"status": "refused", "reason": "unauthorized"}
+
     if not ctx.branch or not ctx.repo_url:
-        db.update_run(run_id, status="approved", finished_at=_now())
-        db.set_thread_status(ctx.thread_id, "resolved")
-        db.post_message(ctx.thread_id, "agent", "Approuvé (rien à fusionner).", run_id=run_id)
+        _terminate(run_id, thread_id, "approved", "Approuvé (rien à fusionner).", resolved=True)
         return {"status": "approved"}
+
     tmp = Path(tempfile.mkdtemp(prefix="kua-merge-"))
     try:
         gitops.clone(ctx.repo_url, tmp, ctx.default_branch)
-        gitops._run(["fetch", "origin", ctx.branch], cwd=tmp)
-        gitops._run(["merge", "--no-edit", f"origin/{ctx.branch}"], cwd=tmp)
+        gitops.fetch(tmp, "origin", ctx.branch)
+        # Anti-TOCTOU : on fusionne le SHA REVIEWÉ, pas l'état vivant de la branche.
+        target_ref = f"origin/{ctx.branch}"
+        if ctx.delivered_sha:
+            fetched = gitops._run(["rev-parse", f"origin/{ctx.branch}"], cwd=tmp).strip()
+            if fetched != ctx.delivered_sha:
+                raise gitops.GitError(
+                    f"la branche a changé depuis la revue (reviewé {ctx.delivered_sha[:8]}, distant {fetched[:8]})"
+                )
+            target_ref = ctx.delivered_sha
+        gitops._run(["merge", "--no-edit", target_ref], cwd=tmp)
         gitops.push(tmp, "origin", ctx.default_branch)
+    except Exception as exc:
+        try:
+            gitops._run(["merge", "--abort"], cwd=tmp)
+        except Exception:
+            pass
+        _terminate(run_id, thread_id, "failed", f"Échec de la fusion dans {ctx.default_branch} : {exc}")
+        return {"status": "merge_failed"}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    db.update_run(run_id, status="pushed", finished_at=_now())
-    db.set_thread_status(ctx.thread_id, "resolved")
-    db.post_message(
-        ctx.thread_id, "agent", f"Approuvé → fusionné dans {ctx.default_branch} et publié.", run_id=run_id
-    )
+
+    _terminate(run_id, thread_id, "pushed", f"Approuvé → fusionné dans {ctx.default_branch} et publié.", resolved=True)
     return {"status": "pushed"}
 
 
+def _terminate(run_id: str, thread_id: str, run_status: str, message: str, *, resolved: bool = False) -> None:
+    """Transition terminale d'un run + thread + message agent (best-effort)."""
+    try:
+        db.update_run(run_id, status=run_status, finished_at=_now())
+    except Exception:
+        logger.exception("kua: _terminate update_run a échoué run_id=%s", run_id)
+    try:
+        db.set_thread_status(thread_id, "resolved" if resolved else "failed")
+    except Exception:
+        logger.exception("kua: _terminate set_thread_status a échoué thread_id=%s", thread_id)
+    try:
+        db.post_message(thread_id, "agent", message, run_id=run_id)
+    except Exception:
+        logger.exception("kua: _terminate post_message a échoué thread_id=%s", thread_id)
+
+
 def process_approvals() -> list[dict[str, Any]]:
-    """Watcher : agit sur les runs `awaiting_approval` ayant une décision (doc 06 §8).
-    La transition de statut empêche le re-traitement."""
+    """Watcher (doc 06 §8). Chaque décision est traitée sous claim atomique + try/except
+    par-run → ni double-exécution, ni poison loop si une décision plante."""
     results: list[dict[str, Any]] = []
     for row in db.runs_awaiting_decision():
         run_id = str(row["run_id"])
         thread_id = str(row["thread_id"])
         decision = row["decision"]
-        if decision == "approved":
-            res = _merge_run(run_id)
-        elif decision == "rejected":
-            db.update_run(run_id, status="rejected", finished_at=_now())
-            db.set_thread_status(thread_id, "rejected")
-            db.post_message(thread_id, "agent", "Refusé. Conversation fermée.", run_id=run_id)
-            res = {"status": "rejected"}
-        elif decision == "redo":
-            nuance = (row.get("comment") or "").strip()
-            new_goal = row["goal"] + (f"\n\nNuance demandée : {nuance}" if nuance else "")
-            new_run_id = db.add_run(thread_id, new_goal)
-            db.update_run(run_id, status="rejected")  # l'ancien run est remplacé
-            db.set_thread_status(thread_id, "working")
-            db.post_message(thread_id, "agent", "Refaire : je relance un run avec ta nuance.", run_id=run_id)
-            res = {"status": "redo", "new_run_id": new_run_id}
-        else:
-            res = {"status": "ignored", "decision": decision}
+        try:
+            if decision == "approved":
+                res = _merge_run(run_id)  # claim atomique interne
+            elif decision == "rejected":
+                if db.claim_run_for_status(run_id, "awaiting_approval", "rejected"):
+                    db.update_run(run_id, finished_at=_now())
+                    db.set_thread_status(thread_id, "rejected")
+                    db.post_message(thread_id, "agent", "Refusé. Conversation fermée.", run_id=run_id)
+                    res = {"status": "rejected"}
+                else:
+                    res = {"status": "already_handled"}
+            elif decision == "redo":
+                if db.claim_run_for_status(run_id, "awaiting_approval", "rejected"):
+                    db.update_run(run_id, finished_at=_now())
+                    nuance = (row.get("comment") or "").strip()
+                    new_goal = row["goal"] + (f"\n\nNuance demandée : {nuance}" if nuance else "")
+                    new_run_id = db.add_run(thread_id, new_goal)
+                    db.set_thread_status(thread_id, "working")
+                    db.post_message(thread_id, "agent", "Refaire : je relance un run avec ta nuance.", run_id=run_id)
+                    res = {"status": "redo", "new_run_id": new_run_id}
+                else:
+                    res = {"status": "already_handled"}
+            else:
+                res = {"status": "ignored", "decision": decision}
+        except Exception as exc:  # filet par-run : sortir de awaiting_approval (anti poison loop)
+            logger.exception("kua: décision %s échouée run_id=%s", decision, run_id)
+            try:
+                db.claim_run_for_status(run_id, "awaiting_approval", "failed")
+                db.update_run(run_id, finished_at=_now())
+                db.set_thread_status(thread_id, "failed")
+                db.post_message(thread_id, "agent", f"Échec du traitement de la décision : {type(exc).__name__}: {exc}", run_id=run_id)
+            except Exception:
+                logger.exception("kua: filet process_approvals a échoué run_id=%s", run_id)
+            res = {"status": "error", "error": str(exc)}
         results.append({"run_id": run_id, "decision": decision, **res})
     return results
 
 
+def _reap_orphans() -> None:
+    for r in db.reap_orphaned_runs(ORPHAN_GRACE_MIN):
+        try:
+            db.set_thread_status(str(r["thread_id"]), "failed")
+            db.post_message(
+                str(r["thread_id"]), "agent",
+                "Échec (orphelin) : le worker est mort pendant l'exécution. Run libéré, façade débloquée.",
+                run_id=str(r["id"]),
+            )
+        except Exception:
+            logger.exception("kua: reap message a échoué run_id=%s", r.get("id"))
+
+
 def run_worker(*, once: bool = False, poll_interval: float = 5.0, executor: Optional[Executor] = None) -> None:
-    """Boucle principale : traite les approbations, réclame un run queued, l'exécute."""
+    """Boucle principale. Chaque étape est protégée : un run pourri ne tue jamais le daemon."""
     while True:
-        process_approvals()
-        claimed = db.claim_queued_run()
-        if claimed:
-            process_run(str(claimed["run_id"]), executor=executor)
+        try:
+            _reap_orphans()
+        except Exception:
+            logger.exception("kua: reap_orphaned_runs a échoué")
+        try:
+            process_approvals()
+        except Exception:
+            logger.exception("kua: process_approvals a levé")
+        claimed = None
+        try:
+            claimed = db.claim_queued_run()
+            if claimed:
+                process_run(str(claimed["run_id"]), executor=executor)
+        except Exception:
+            logger.exception("kua: claim/process_run a levé")
         if once:
             break
         if not claimed:

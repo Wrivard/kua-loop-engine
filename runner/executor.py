@@ -6,12 +6,15 @@ même Protocol → le pipeline et le self-test sont identiques, seul l'exécuteu
 
 from __future__ import annotations
 
+import os
+import signal
 import subprocess
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from typing import Optional, Protocol
 
+from runner.env import clean_env
 from runner.runner import build_claude_command, parse_claude_result
 
 
@@ -39,20 +42,44 @@ class ClaudeExecutor:
 
     def run(self, cwd, goal: str, *, budget_usd, timeout_min: int = 30, model: str = "sonnet") -> ExecResult:
         cmd = build_claude_command(goal, model=model, budget_usd=budget_usd, timeout_min=timeout_min)
-        proc = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True)
-        if proc.returncode == 124:  # `timeout` a tué le process
-            return ExecResult("timed_out", Decimal("0"), 0, "Temps écoulé (timeout).", None, (proc.stdout or "")[-2000:])
+        # Filet Python = backstop du `timeout` shell (marge > timeout + kill-after).
+        py_timeout = timeout_min * 60 + 90
         try:
-            r = parse_claude_result(proc.stdout)
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(cwd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                start_new_session=True,   # propre groupe → on peut tuer tout l'arbre
+                env=clean_env(),           # pas de secrets backend dans l'env de claude
+            )
+        except FileNotFoundError:
+            return ExecResult("failed", Decimal("0"), 0, "Binaire claude/timeout introuvable.", None, "")
+        try:
+            stdout, stderr = proc.communicate(timeout=py_timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)  # tue claude + enfants
+            except (ProcessLookupError, PermissionError):
+                pass
+            proc.communicate()  # reap
+            return ExecResult("timed_out", Decimal("0"), 0, "Temps écoulé (garde Python).", None, "")
+
+        if proc.returncode == 124:  # le `timeout` shell (SIGTERM) a coupé
+            return ExecResult("timed_out", Decimal("0"), 0, "Temps écoulé (timeout).", None, (stdout or "")[-2000:])
+        try:
+            r = parse_claude_result(stdout)
         except Exception:
-            blob = (proc.stdout or proc.stderr or "")[-2000:]
+            blob = (stdout or stderr or "")[-2000:]
             return ExecResult("failed", Decimal("0"), 0, f"Sortie claude illisible (exit {proc.returncode}).", None, blob)
         if r.succeeded:
-            return ExecResult("succeeded", r.cost_usd, r.num_turns, r.result, r.session_id, proc.stdout[-4000:])
-        blob = f"{r.subtype} {r.stop_reason} {r.result}".lower()
-        budget_hit = "budget" in blob or (budget_usd and r.cost_usd >= Decimal(str(budget_usd)))
-        status = "budget_exceeded" if budget_hit else "failed"
-        return ExecResult(status, r.cost_usd, r.num_turns, r.result or r.subtype, r.session_id, proc.stdout[-4000:])
+            return ExecResult("succeeded", r.cost_usd, r.num_turns, r.result, r.session_id, stdout[-4000:])
+        # Classification d'échec sur les CHAMPS STRUCTURÉS uniquement (jamais le texte
+        # libre `result`, ni le coût qui rate les coupures sous-seuil / faux positifs).
+        signals = " ".join(s for s in (r.subtype, r.stop_reason, r.terminal_reason) if s).lower()
+        status = "budget_exceeded" if "budget" in signals else "failed"
+        return ExecResult(status, r.cost_usd, r.num_turns, r.result or r.subtype, r.session_id, stdout[-4000:])
 
 
 class FakeExecutor:
