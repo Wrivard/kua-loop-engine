@@ -54,7 +54,34 @@ L'URL Supabase est connue ; l'**anon key** doit être fournie par William (cf. Q
 ## Questions ouvertes (pour William)
 - **Anon key Supabase** : à fournir avant le preview (Dashboard > Settings > API > clé `anon`/publishable).
 - **Comptes** : doc 12 dit « 2 comptes en dur ». À créer dans Supabase **Authentication > Users > Add user** (William + partner, email/mot de passe). Je ne peux pas les provisionner (pas de service_role dans l'UI, règle sécu #3). Une fois créés + anon key câblée, le login fonctionne tel quel.
-- **RLS** : désactivé côté DB. Tant qu'il l'est, l'anon key lit/écrit tout. À durcir avant prod (hors scope UI).
+- **RLS** : ✅ **activé** (migration `db/migrations/002_rls_realtime.sql`) — voir « Sécurité & accès » ci-dessous.
+
+## Sécurité & accès (verrouillage — « seulement moi »)
+Trois couches, dont 2 déjà en place :
+
+1. **Auth applicative** (✅ code) : `middleware.ts` exige une session Supabase sur **toutes** les
+   routes hors `/login` dès que les variables sont configurées. Login = email/mot de passe.
+2. **RLS au niveau données** (✅ DB, migration 002) : l'anon key est **publique** (dans le JS du
+   client) → sans RLS, n'importe qui lirait/écrirait la DB via l'API REST **sans se connecter**.
+   Désormais : seul le rôle `authenticated` (utilisateur connecté) accède ; `anon` = **0 accès**
+   (vérifié). Le backend (service_role) bypasse. ⇒ Même en contournant l'UI, pas d'accès sans login.
+3. **À FAIRE par toi (dashboard Supabase)** pour fermer complètement :
+   - **Authentication → Sign In / Providers → Email → désactiver « Allow new users to sign up »**
+     (sinon quelqu'un pourrait se créer un compte via l'anon key). Une fois off, seuls les comptes
+     créés à la main existent.
+   - **Authentication → Users → Add user** : crée **uniquement** ton compte (+ le partner). Pas d'autre.
+   - *(Optionnel, ceinture+bretelles)* Vercel → Settings → **Deployment Protection** : exiger une auth
+     Vercel/mot de passe au bord, avant même que l'app charge.
+
+### Variables d'environnement à mettre sur Vercel (et UNIQUEMENT celles-ci)
+| Variable | Valeur | Note |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://labzjtqkgbrdxjsqalno.supabase.co` | publique |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | clé **anon/publishable** (Supabase → Settings → API) | publique, OK côté client |
+
+❌ **Ne mets JAMAIS** sur Vercel : `service_role`, `SUPABASE_DB_URL`, `GITHUB_TOKEN`, `SENTRY_WEBHOOK_SECRET` —
+ce sont des secrets **backend** (`/srv/kua/.env`). Les déclarer (Production + Preview), redeploy, et
+l'app exige le login + la RLS protège les données.
 
 ## État par écran
 Légende : ✅ FAIT · 🟡 PARTIEL · ⬜ À FAIRE
