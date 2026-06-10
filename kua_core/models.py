@@ -13,6 +13,8 @@ from typing import Any, Optional
 
 # --- Énumérations « verrouillées » (doc CLAUDE.md + doc 03) ---
 
+# Presets de façade SUGGÉRÉS (pas une liste fermée) : la `facade` est une clé de
+# preset OUVERTE (general, new_project, ou tout slug libre sont valides aussi).
 FACADES = ("bugfix", "discord", "seo", "demo", "finish")
 AUTONOMY = ("manual", "approve_final", "auto")
 EVENT_SOURCES = ("sentry", "posthog", "discord", "cron", "calendar", "ui", "manual")
@@ -28,7 +30,7 @@ THREAD_STATUSES = (
 #               → approved → pushed  ↘ failed | rejected | budget_exceeded | timed_out
 RUN_STATUSES = (
     "queued", "preparing", "running", "verifying", "awaiting_approval",
-    "approved", "pushed", "failed", "rejected", "budget_exceeded", "timed_out",
+    "merging", "approved", "pushed", "failed", "rejected", "budget_exceeded", "timed_out",
 )
 APPROVAL_DECISIONS = ("approved", "rejected", "redo")
 
@@ -43,6 +45,7 @@ class Project:
     discord_channel_id: Optional[str] = None
     sentry_project_slug: Optional[str] = None
     is_engine: bool = False
+    allow_auto: bool = False     # 2e verrou pour autonomy=auto (CLAUDE.md règle 1)
     created_at: Optional[datetime] = None
 
 

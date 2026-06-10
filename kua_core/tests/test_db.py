@@ -146,6 +146,9 @@ def test_sql_constants_are_valid_against_real_schema():
         (db.POST_MESSAGE_SQL, (_ZERO_UUID, "system", None, "x", None)),
         (db.SET_THREAD_STATUS_SQL, ("open", "open", "open", _ZERO_UUID)),
         (db.RUNS_AWAITING_DECISION_SQL, None),
+        (db.CLAIM_RUN_FOR_STATUS_SQL, ("merging", _ZERO_UUID, "awaiting_approval")),
+        (db.LATEST_APPROVAL_SQL, (_ZERO_UUID,)),
+        (db.REAP_ORPHANED_RUNS_SQL, (list(db._ACTIVE_RUN_STATUSES), 60)),
     ]
     with db.connect() as conn:
         for sql, params in plans:

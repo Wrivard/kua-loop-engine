@@ -20,12 +20,17 @@ design en attente. Ce module ne fait que parser/valider la config des loops.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from kua_core.models import AUTONOMY, FACADES
+from kua_core.models import AUTONOMY
+
+# La façade est une clé de PRESET ouverte (agnostique) : on valide la FORME (slug),
+# pas l'appartenance à une liste fermée. AUTONOMY, lui, reste une enum verrouillée.
+_FACADE_SLUG = re.compile(r"^[a-z0-9_-]+$")
 
 _LOOP_DEFAULTS = {
     "enabled": False,
@@ -82,8 +87,10 @@ def parse_loops_yaml(path: str | Path) -> ParsedLoopsFile:
 
     loops: list[ParsedLoop] = []
     for facade, cfg in loops_raw.items():
-        if facade not in FACADES:
-            raise ValueError(f"loops.yaml : façade inconnue '{facade}' (attendu: {FACADES})")
+        if not isinstance(facade, str) or not _FACADE_SLUG.match(facade):
+            raise ValueError(
+                f"loops.yaml : clé de façade invalide '{facade}' (slug attendu : ^[a-z0-9_-]+$)"
+            )
         cfg = cfg or {}
         if not isinstance(cfg, dict):
             raise ValueError(f"loops.yaml : config de '{facade}' attendue = mapping")
@@ -92,6 +99,11 @@ def parse_loops_yaml(path: str | Path) -> ParsedLoopsFile:
         if autonomy not in AUTONOMY:
             raise ValueError(
                 f"loops.yaml : autonomy invalide '{autonomy}' pour '{facade}' (attendu: {AUTONOMY})"
+            )
+        budget = Decimal(str(merged["budget_usd"]))
+        if budget <= 0:
+            raise ValueError(
+                f"loops.yaml : budget_usd doit être > 0 pour '{facade}' (règle non-négociable #2)"
             )
         # `schedule` est l'alias YAML court de schedule_cron (doc 03).
         schedule = cfg.get("schedule", merged.get("schedule_cron"))
@@ -102,7 +114,7 @@ def parse_loops_yaml(path: str | Path) -> ParsedLoopsFile:
                 autonomy=autonomy,
                 model=str(merged["model"]),
                 max_iterations=int(merged["max_iterations"]),
-                budget_usd=Decimal(str(merged["budget_usd"])),
+                budget_usd=budget,
                 timeout_min=int(merged["timeout_min"]),
                 schedule_cron=schedule,
                 config=merged["config"] or {},

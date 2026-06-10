@@ -43,9 +43,24 @@ def test_parse_valid(tmp_path):
     assert parsed.escalation["discord_channel"] == "kua-loops-alerts"
 
 
-def test_unknown_facade_rejected(tmp_path):
-    bad = "project: x\nloops:\n  nope: { enabled: true }\n"
-    with pytest.raises(ValueError, match="façade inconnue"):
+def test_invalid_facade_slug_rejected(tmp_path):
+    # La façade est une clé de preset OUVERTE, mais doit rester un slug.
+    bad = "project: x\nloops:\n  'Bad Facade!': { enabled: true }\n"
+    with pytest.raises(ValueError, match="clé de façade invalide"):
+        parse_loops_yaml(_write(tmp_path, bad))
+
+
+def test_free_facade_slug_accepted(tmp_path):
+    # Agnostique : general / new_project / slug libre sont valides.
+    ok = "project: x\nloops:\n  general: { enabled: true, budget_usd: 2 }\n  new_project: { enabled: true, budget_usd: 2 }\n"
+    parsed = parse_loops_yaml(_write(tmp_path, ok))
+    facades = {lp.facade for lp in parsed.loops}
+    assert "general" in facades and "new_project" in facades
+
+
+def test_zero_budget_rejected(tmp_path):
+    bad = "project: x\nloops:\n  bugfix: { enabled: true, budget_usd: 0 }\n"
+    with pytest.raises(ValueError, match="budget_usd"):
         parse_loops_yaml(_write(tmp_path, bad))
 
 

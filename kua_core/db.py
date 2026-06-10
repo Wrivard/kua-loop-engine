@@ -67,6 +67,10 @@ CLAIM_RUN_SQL = """
                 AND t2.facade = t.facade
                 AND r2.status = ANY(%s)
           )
+          -- Verrou d'avis transactionnel par (project,facade) : deux workers
+          -- concurrents sur le même couple s'excluent (le NOT EXISTS seul est racé
+          -- sous READ COMMITTED car la transition 'preparing' n'est pas encore visible).
+          AND pg_try_advisory_xact_lock(hashtextextended(t.project_id || ':' || t.facade, 0))
         ORDER BY r.created_at
         FOR UPDATE OF r SKIP LOCKED
         LIMIT 1
@@ -124,8 +128,9 @@ def create_thread_with_run(
 def claim_queued_run() -> Optional[dict[str, Any]]:
     """Réclame le plus ancien run `queued` et le passe en `preparing` (doc 06).
 
-    `FOR UPDATE OF r SKIP LOCKED` : deux workers concurrents ne prennent jamais le
-    même run. La garde NOT EXISTS impose « un run actif par (project, facade) ».
+    `FOR UPDATE OF r SKIP LOCKED` : deux workers ne prennent jamais le même run.
+    La garde NOT EXISTS + le verrou d'avis `pg_try_advisory_xact_lock` imposent
+    « un seul run actif par (project, facade) » même sous concurrence.
     Retourne la ligne du run (dict) ou None s'il n'y a rien à réclamer.
     """
     from psycopg.rows import dict_row  # noqa: PLC0415 — import paresseux
@@ -142,11 +147,12 @@ def claim_queued_run() -> Optional[dict[str, Any]]:
 GET_RUN_CONTEXT_SQL = """
     SELECT
       r.id AS run_id, r.status AS run_status, r.goal AS goal, r.thread_id,
-      r.branch AS branch, r.pr_url AS pr_url,
+      r.branch AS branch, r.pr_url AS pr_url, r.delivered_sha AS delivered_sha,
       t.facade AS facade, t.subject AS subject, t.project_id AS project_id,
       t.loop_id AS loop_id, t.status AS thread_status,
       p.name AS project_name, p.repo_url AS repo_url,
       p.default_branch AS default_branch, p.is_engine AS is_engine,
+      p.allow_auto AS allow_auto,
       l.autonomy AS autonomy, l.budget_usd AS budget_usd, l.model AS model,
       l.timeout_min AS timeout_min, l.max_iterations AS max_iterations, l.config AS config
     FROM runs r
@@ -188,6 +194,7 @@ _RUN_UPDATE_COLUMNS = frozenset(
     {
         "status", "branch", "pr_url", "preview_url", "cost_usd",
         "iterations", "log_path", "summary", "started_at", "finished_at",
+        "delivered_sha",
     }
 )
 
@@ -255,4 +262,56 @@ def runs_awaiting_decision() -> list[dict[str, Any]]:
     with connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(RUNS_AWAITING_DECISION_SQL)
+            return cur.fetchall()
+
+
+CLAIM_RUN_FOR_STATUS_SQL = "UPDATE runs SET status = %s WHERE id = %s AND status = %s RETURNING id"
+
+
+def claim_run_for_status(run_id: str, expected: str, new_status: str) -> bool:
+    """Transition atomique conditionnelle : passe `run_id` de `expected` à `new_status`
+    UNIQUEMENT si son statut vaut encore `expected`. True pour le gagnant (un seul sous
+    concurrence) — utilisé pour réclamer une décision/un merge sans double-exécution."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(CLAIM_RUN_FOR_STATUS_SQL, (new_status, run_id, expected))
+            return cur.fetchone() is not None
+
+
+LATEST_APPROVAL_SQL = (
+    "SELECT decision, comment, decided_by FROM approvals "
+    "WHERE run_id = %s ORDER BY decided_at DESC LIMIT 1"
+)
+
+
+def latest_approval(run_id: str) -> Optional[dict[str, Any]]:
+    """Dernière décision d'approbation d'un run (ré-validation défensive avant merge)."""
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(LATEST_APPROVAL_SQL, (run_id,))
+            return cur.fetchone()
+
+
+# Récupère les runs « orphelins » (worker mort pendant l'exécution) et les libère.
+REAP_ORPHANED_RUNS_SQL = """
+    UPDATE runs SET status = 'failed', finished_at = now(),
+        summary = COALESCE(summary, '') || ' [orphelin : worker mort pendant l''exécution]'
+    WHERE status = ANY(%s)
+      AND started_at IS NOT NULL
+      AND started_at < now() - make_interval(mins => %s)
+    RETURNING id, thread_id
+"""
+
+
+def reap_orphaned_runs(grace_min: int) -> list[dict[str, Any]]:
+    """Marque `failed` les runs actifs (preparing/running/verifying) bloqués depuis
+    > grace_min (process mort) → débloque la façade. `awaiting_approval` est exclu
+    (attente humaine, pas un orphelin)."""
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(REAP_ORPHANED_RUNS_SQL, (list(_ACTIVE_RUN_STATUSES), grace_min))
             return cur.fetchall()
