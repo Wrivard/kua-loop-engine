@@ -7,14 +7,17 @@
 // les fonctions de lib/queries.ts choisissent seed vs Supabase selon ce flag.
 
 import type {
+  Facade,
   InboxGroup,
   Loop,
   MessageWithRun,
   Project,
   RunRow,
+  SidebarProject,
   ThreadListItem,
   ThreadRow,
 } from "@/lib/types";
+import { FACADE_ORDER } from "@/lib/facade";
 
 // Horodatages fixes autour du 2026-06-10 (date courante du projet).
 const T = {
@@ -471,6 +474,19 @@ export function seedThreadMessages(threadId: string): MessageWithRun[] {
 
 export function seedRunsByThread(threadId: string): RunRow[] {
   return runsForThread(threadId);
+}
+
+export function seedSidebarProjects(): SidebarProject[] {
+  return seedProjects().map((p) => {
+    const facades = SEED_LOOPS.filter((l) => l.project_id === p.id && l.enabled).map(
+      (l) => l.facade,
+    );
+    const ordered = FACADE_ORDER.filter((f) => facades.includes(f)) as Facade[];
+    const awaiting = SEED_THREADS.filter(
+      (t) => t.project_id === p.id && t.status === "awaiting_approval",
+    ).length;
+    return { id: p.id, name: p.name, is_engine: p.is_engine, awaiting, facades: ordered };
+  });
 }
 
 export function seedMonthCost(projectId: string): number {

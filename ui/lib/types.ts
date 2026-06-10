@@ -136,3 +136,12 @@ export interface InboxGroup {
   project: Pick<Project, "id" | "name" | "plan">;
   threads: ThreadListItem[];
 }
+
+/** Entrée de la sidebar : projet + compte « à confirmer » + façades armées. */
+export interface SidebarProject {
+  id: string;
+  name: string;
+  is_engine: boolean;
+  awaiting: number;
+  facades: Facade[];
+}

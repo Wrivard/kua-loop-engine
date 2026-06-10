@@ -10,18 +10,23 @@ import {
   seedProjectById,
   seedProjects,
   seedRunsByThread,
+  seedSidebarProjects,
   seedThread,
   seedThreadMessages,
   seedThreadsByProject,
 } from "@/lib/seed";
+import { FACADE_ORDER } from "@/lib/facade";
 import type {
   ApprovalDecision,
+  Autonomy,
+  Facade,
   InboxGroup,
   Loop,
   MessageRole,
   MessageWithRun,
   Project,
   RunRow,
+  SidebarProject,
   ThreadListItem,
   ThreadRow,
 } from "@/lib/types";
@@ -108,6 +113,45 @@ export async function getInboxGroups(): Promise<InboxGroup[]> {
   return [...groups.values()];
 }
 
+/** Données de la sidebar : projets + compte « à confirmer » + façades armées. */
+export async function getSidebarProjects(): Promise<SidebarProject[]> {
+  if (!isSupabaseConfigured) return seedSidebarProjects();
+
+  const [projectsRes, loopsRes, awaitingRes] = await Promise.all([
+    supabase.from("projects").select("id,name,is_engine").order("name"),
+    supabase.from("loops").select("project_id,facade,enabled").eq("enabled", true),
+    supabase.from("threads").select("project_id").eq("status", "awaiting_approval"),
+  ]);
+  if (projectsRes.error) throw projectsRes.error;
+  if (loopsRes.error) throw loopsRes.error;
+  if (awaitingRes.error) throw awaitingRes.error;
+
+  const loops = (loopsRes.data as { project_id: string; facade: Facade }[]) ?? [];
+  const awaiting = (awaitingRes.data as { project_id: string | null }[]) ?? [];
+  const countByProject = new Map<string, number>();
+  for (const t of awaiting) {
+    if (!t.project_id) continue;
+    countByProject.set(t.project_id, (countByProject.get(t.project_id) ?? 0) + 1);
+  }
+  const facadesByProject = new Map<string, Set<Facade>>();
+  for (const l of loops) {
+    if (!facadesByProject.has(l.project_id)) facadesByProject.set(l.project_id, new Set());
+    facadesByProject.get(l.project_id)!.add(l.facade);
+  }
+
+  const projects = (projectsRes.data as Pick<Project, "id" | "name" | "is_engine">[]) ?? [];
+  return projects.map((p) => {
+    const set = facadesByProject.get(p.id) ?? new Set<Facade>();
+    return {
+      id: p.id,
+      name: p.name,
+      is_engine: p.is_engine,
+      awaiting: countByProject.get(p.id) ?? 0,
+      facades: FACADE_ORDER.filter((f) => set.has(f)),
+    };
+  });
+}
+
 /** Toutes les conversations d'un projet (l'appelant sépare actives / archivées). */
 export async function getThreadsByProject(projectId: string): Promise<ThreadListItem[]> {
   if (!isSupabaseConfigured) return seedThreadsByProject(projectId);
@@ -184,6 +228,42 @@ export async function insertApproval(
     .from("approvals")
     .insert({ run_id: runId, decision, decided_by: decidedBy, comment: comment ?? null });
   if (error) throw error;
+}
+
+/** Règle l'autonomie d'une façade (doc 12 : off/manuel/approbation/auto).
+ *  off = loop désarmée (enabled=false). Le commit loops.yaml est géré côté backend. */
+export async function setLoopAutonomy(
+  loopId: string,
+  enabled: boolean,
+  autonomy: Autonomy,
+): Promise<void> {
+  if (!isSupabaseConfigured) return; // preview : no-op
+  const { error } = await supabase.from("loops").update({ enabled, autonomy }).eq("id", loopId);
+  if (error) throw error;
+}
+
+/** Crée une conversation (doc 12 : insère threads + 1er message ; le Runner
+ *  enquêtera le run). Retourne l'id du thread, ou null en preview. */
+export async function createThread(
+  projectId: string,
+  facade: Facade,
+  loopId: string | null,
+  subject: string,
+  firstMessage: string,
+  author: string,
+): Promise<string | null> {
+  if (!isSupabaseConfigured) return null; // preview : pas de persistance
+  const { data, error } = await supabase
+    .from("threads")
+    .insert({ project_id: projectId, facade, loop_id: loopId, subject, status: "open" })
+    .select("id")
+    .single();
+  if (error) throw error;
+  const threadId = (data as { id: string }).id;
+  await supabase
+    .from("messages")
+    .insert({ thread_id: threadId, role: "user", content: firstMessage, author });
+  return threadId;
 }
 
 /** Poste un message dans une conversation (composer → agent de façade). */
