@@ -1,10 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-if (!url || !key) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY sont requis (voir .env.example)");
-}
+/** True si les 2 variables publiques sont présentes (anon key — JAMAIS service_role). */
+export const isSupabaseConfigured = Boolean(url && anonKey);
 
-export const supabase = createClient(url, key);
+// Résilient : si non configuré, on instancie quand même avec des placeholders
+// pour que le build et le dev server ne crashent pas. Les écrans vérifient
+// `isSupabaseConfigured` et affichent un état « configuration manquante »
+// (cf. ui/BUILD-NOTES.md — l'anon key doit être fournie avant le preview).
+export const supabase = createBrowserClient(
+  url || "https://placeholder.supabase.co",
+  anonKey || "placeholder-anon-key",
+);
