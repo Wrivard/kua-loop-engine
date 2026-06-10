@@ -37,7 +37,7 @@ L'URL Supabase est connue ; l'**anon key** doit être fournie par William (cf. Q
 
 ## Questions ouvertes (pour William)
 - **Anon key Supabase** : à fournir avant le preview (Dashboard > Settings > API > clé `anon`/publishable).
-- **Comptes** : doc 12 dit « 2 comptes en dur ». Créés via Supabase Auth ? (voir milestone M3 — détaillé là).
+- **Comptes** : doc 12 dit « 2 comptes en dur ». À créer dans Supabase **Authentication > Users > Add user** (William + partner, email/mot de passe). Je ne peux pas les provisionner (pas de service_role dans l'UI, règle sécu #3). Une fois créés + anon key câblée, le login fonctionne tel quel.
 - **RLS** : désactivé côté DB. Tant qu'il l'est, l'anon key lit/écrit tout. À durcir avant prod (hors scope UI).
 
 ## État par écran
@@ -47,7 +47,7 @@ Légende : ✅ FAIT · 🟡 PARTIEL · ⬜ À FAIRE
 |------|------|--------|
 | **Setup** (M1) | ✅ FAIT | Next 14 App Router + TS strict + Tailwind tokens (CSS vars) + shadcn manuel (button/card/badge/skeleton/input/textarea/dialog/popover) + Geist + dark mode + client Supabase résilient. `build` + `lint` OK. |
 | **Couche données** (M2) | ✅ FAIT | `lib/types.ts` (miroir des 7 tables), `lib/facade.ts` (couleurs/labels/icônes + pills statut), `lib/queries.ts` (projets, inbox, threads, messages+run, coût mois, écritures approval/message), `lib/use-live-query.ts` (refetch sur Realtime). Pas encore branché sur un écran. |
-| **Auth** (M3) | ⬜ À FAIRE | Supabase Auth email/password, 2 comptes, middleware `@supabase/ssr` protégeant toutes les routes. |
+| **Auth** (M3) | ✅ FAIT | `middleware.ts` (gate `@supabase/ssr`, protège toutes les routes hors `/login`), `app/login` (email/password), `lib/auth.ts` (`useCurrentUser`, `currentIdentity` pour `decided_by`, `signOut`). **Résilient** : sans Supabase, bypass → mode preview. Les 2 comptes restent à créer côté Supabase (voir Questions). |
 | **Inbox** `/` (M4) | ⬜ À FAIRE | Conversations à confirmer, groupées par projet, action inline Oui/Refaire, mobile-first, état vide « Rien à confirmer ». |
 | **Projet** `/p/[slug]` (M5) | ⬜ À FAIRE | Liste des conversations, filtres façade (couleur+compte) + « Nouvelle », Archivées repliables, header coût du mois. |
 | **Conversation** (M6) | ⬜ À FAIRE | Chat user/agent + cartes run (Demandé/Fait, avant-après, Oui/Refaire), composer → agent, liseré façade, pill statut. |
