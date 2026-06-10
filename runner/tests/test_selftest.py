@@ -25,4 +25,5 @@ def test_runner_end_to_end_bare_local():
     assert rep["ok"] is True, rep
     assert rep["deliver"]["status"] == "awaiting_approval"
     assert rep["deliver"]["verify"] == "passed"
-    assert rep["approval"] and rep["approval"][0]["status"] == "pushed"
+    assert rep["approval"]["status"] == "pushed"      # merge ciblé → pushed
+    assert "user" in rep["message_roles"] and "run" in rep["message_roles"]

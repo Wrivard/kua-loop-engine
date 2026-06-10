@@ -38,10 +38,11 @@ def _seed_db(project_id: str, bare_path: str) -> tuple[str, str]:
                 (project_id,),
             )
             loop_id = str(cur.fetchone()[0])
-    return db.create_thread_with_run(
-        project_id, loop_id, "general", "Selftest run",
-        None, "Ajoute une note de test dans KUA_RUN.md.",
-    )
+    goal = "Ajoute une note de test dans KUA_RUN.md."
+    thread_id, run_id = db.create_thread_with_run(project_id, loop_id, "general", "Selftest run", None, goal)
+    # Forme exacte de l'UI (createThread) : thread + message user + run(queued).
+    db.post_message(thread_id, "user", goal, author="selftest@kua")
+    return thread_id, run_id
 
 
 def _cleanup_db(project_id: str) -> None:
@@ -91,11 +92,26 @@ def run_selftest(*, keep: bool = False, executor: Optional[Executor] = None) -> 
         thread_id, run_id = _seed_db(project_id, str(bare))
         step("seed_db", thread_id=thread_id, run_id=run_id)
 
-        # 3) Pipeline complet (Fake executor + livraison bare locale).
+        # 3) Le worker pogne le run. Si l'environnement est propre (aucun AUTRE run
+        #    queued), on prouve le CLAIM réel (poll) ; sinon on évite le claim global
+        #    (sécurité : ne jamais déclencher le run d'un autre projet) et on cible.
         ex = executor or FakeExecutor()
-        deliver_rep = worker.process_run(
-            run_id, executor=ex, deliverer=LocalBareDeliverer(), checkouts_dir=str(workdir / "checkouts")
-        )
+        deliverer = LocalBareDeliverer()
+        checkouts = str(workdir / "checkouts")
+        with db.connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM runs WHERE status = 'queued' AND id <> %s", (run_id,))
+                others = cur.fetchone()[0]
+        if others == 0:
+            claimed = db.claim_queued_run()  # RETURNING * de runs → clé 'id'
+            if not claimed or str(claimed["id"]) != run_id:
+                report["error"] = f"claim attendu {run_id}, obtenu {claimed and claimed.get('id')}"
+                return report
+            report["claimed_via_poll"] = True
+        else:
+            report["claimed_via_poll"] = False  # autres runs queued présents → claim global évité
+
+        deliver_rep = worker.process_run(run_id, executor=ex, deliverer=deliverer, checkouts_dir=checkouts)
         report["deliver"] = deliver_rep
         if deliver_rep.get("status") != "awaiting_approval":
             report["error"] = f"deliver attendu awaiting_approval, obtenu {deliver_rep}"
@@ -106,18 +122,27 @@ def run_selftest(*, keep: bool = False, executor: Optional[Executor] = None) -> 
             return report
         step("delivered", branch=deliver_rep["branch"], pr=deliver_rep["pr_url"])
 
-        # 4) Approbation `approved` → merge dans main + push.
+        # 3b) La conversation (ce que rend l'UI) contient bien message user + carte run.
+        with db.connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT role FROM messages WHERE thread_id = %s", (thread_id,))
+                roles = [r[0] for r in cur.fetchall()]
+        report["message_roles"] = sorted(set(roles))
+        if "user" not in roles or "run" not in roles:
+            report["error"] = f"messages UI attendus (user + run), obtenu {sorted(set(roles))}"
+            return report
+
+        # 4) Approbation `approved` → merge CIBLÉ (worker._merge_run, ne touche que ce run).
         with db.connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO approvals (run_id, decision, decided_by) VALUES (%s, 'approved', 'selftest')",
                     (run_id,),
                 )
-        approvals_rep = worker.process_approvals()
-        mine = [r for r in approvals_rep if r["run_id"] == run_id]
-        report["approval"] = mine
-        if not mine or mine[0].get("status") != "pushed":
-            report["error"] = f"merge attendu pushed, obtenu {mine}"
+        merge_rep = worker._merge_run(run_id)
+        report["approval"] = merge_rep
+        if merge_rep.get("status") != "pushed":
+            report["error"] = f"merge attendu pushed, obtenu {merge_rep}"
             return report
 
         # 5) main du bare contient maintenant la modif → fusion réelle vérifiée.
