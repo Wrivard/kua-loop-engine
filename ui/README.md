@@ -31,7 +31,15 @@ au navigateur. Le token GitHub, etc. vivent dans le backend (`/srv/kua/.env`), p
 3. Build = `npm run build` (auto). Node ≥ 20 (épinglé via `engines` dans `package.json`).
 4. **Environment Variables** (Production + Preview) : `NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-5. Deploy. Sans les variables, le déploiement reste fonctionnel en mode preview (démo).
+5. **Framework Preset = Next.js** (Settings → General). Le repo contient du Python à la racine
+   (`gateway/`, `pyproject.toml`) ; si le projet a été importé avant de régler `Root Directory`,
+   Vercel l'a détecté comme **Python** et garde ce preset. Le `ui/vercel.json` force déjà
+   `"framework": "nextjs"` ; vérifie quand même le preset.
+6. Deploy. Sans les variables, le déploiement reste fonctionnel en mode preview (démo).
+
+> **Dépannage — « No python entrypoint found » :** Vercel tente un build Python. Cause : Root Directory
+> pas réglé sur `ui/` **ou** Framework Preset resté sur Python depuis le 1er import. Fix : Root Directory
+> = `ui`, Framework Preset = `Next.js`, puis Redeploy. (`ui/vercel.json` force le framework.)
 
 ## Auth & comptes
 Middleware `@supabase/ssr` : protège toutes les routes hors `/login` **quand** Supabase est configuré
