@@ -8,6 +8,7 @@ import { Inbox, Menu, LogOut } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -150,6 +151,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DialogTrigger>
             <DialogContent side="left" className="p-0">
               <DialogTitle className="sr-only">Navigation</DialogTitle>
+              <DialogDescription className="sr-only">
+                Navigation entre l&apos;inbox et les projets
+              </DialogDescription>
               <SidebarNav onNavigate={() => setMobileOpen(false)} />
             </DialogContent>
           </Dialog>

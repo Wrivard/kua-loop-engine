@@ -5,6 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Premier jour du mois courant (heure locale). Base du « coût du mois »
+ *  — partagé par getMonthCost (live) et seedMonthCost pour rester en phase. */
+export function monthStartDate(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
 /** Coût formaté en dollars (sortie claude -p : total_cost_usd). */
 export function formatCost(cost: number | string | null | undefined): string | null {
   if (cost == null) return null;

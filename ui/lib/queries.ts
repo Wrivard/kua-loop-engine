@@ -16,6 +16,7 @@ import {
   seedThreadsByProject,
 } from "@/lib/seed";
 import { FACADE_ORDER } from "@/lib/facade";
+import { monthStartDate } from "@/lib/utils";
 import type {
   ApprovalDecision,
   Autonomy,
@@ -202,8 +203,7 @@ export async function getRunsByThread(threadId: string): Promise<RunRow[]> {
 /** Coût du mois courant pour un projet (somme runs.cost_usd des threads du projet). */
 export async function getMonthCost(projectId: string): Promise<number> {
   if (!isSupabaseConfigured) return seedMonthCost(projectId);
-  const start = new Date();
-  const monthStart = new Date(start.getFullYear(), start.getMonth(), 1).toISOString();
+  const monthStart = monthStartDate().toISOString();
   const { data, error } = await supabase
     .from("runs")
     .select("cost_usd, created_at, threads!inner(project_id)")
@@ -243,7 +243,7 @@ export async function setLoopAutonomy(
 }
 
 /** Crée une conversation (doc 12 : insère threads + 1er message ; le Runner
- *  enquêtera le run). Retourne l'id du thread, ou null en preview. */
+ *  déclenchera le 1er run). Retourne l'id du thread, ou null en preview. */
 export async function createThread(
   projectId: string,
   facade: Facade,

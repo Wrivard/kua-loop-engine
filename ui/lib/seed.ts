@@ -18,6 +18,7 @@ import type {
   ThreadRow,
 } from "@/lib/types";
 import { FACADE_ORDER } from "@/lib/facade";
+import { monthStartDate } from "@/lib/utils";
 
 // Horodatages fixes autour du 2026-06-10 (date courante du projet).
 const T = {
@@ -490,11 +491,11 @@ export function seedSidebarProjects(): SidebarProject[] {
 }
 
 export function seedMonthCost(projectId: string): number {
+  const monthStart = monthStartDate(); // même filtre « mois courant » que le live
   const threadIds = new Set(
     SEED_THREADS.filter((t) => t.project_id === projectId).map((t) => t.id),
   );
-  return SEED_RUNS.filter((r) => threadIds.has(r.thread_id)).reduce(
-    (sum, r) => sum + (r.cost_usd ? Number(r.cost_usd) : 0),
-    0,
-  );
+  return SEED_RUNS.filter(
+    (r) => threadIds.has(r.thread_id) && new Date(r.created_at) >= monthStart,
+  ).reduce((sum, r) => sum + (r.cost_usd ? Number(r.cost_usd) : 0), 0);
 }

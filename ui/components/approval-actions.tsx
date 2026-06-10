@@ -70,7 +70,14 @@ export function ApprovalActions({
     <div className={cn("flex items-center gap-2", className)}>
       <Button size={size} disabled={!!pending} onClick={() => decide("approved")}>
         <Check className="h-4 w-4" />
-        {pending === "approved" ? "…" : "Oui, confirmer"}
+        {pending === "approved" ? (
+          "…"
+        ) : (
+          <>
+            <span className="sm:hidden">Confirmer</span>
+            <span className="hidden sm:inline">Oui, confirmer</span>
+          </>
+        )}
       </Button>
       <Button
         size={size}

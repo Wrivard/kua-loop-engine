@@ -19,7 +19,7 @@ export function MessageBubble({ message }: { message: MessageWithRun }) {
     <div className={cn("flex flex-col gap-1", isUser ? "items-end" : "items-start")}>
       <div
         className={cn(
-          "max-w-[85%] whitespace-pre-wrap rounded-xl px-3.5 py-2 text-sm leading-relaxed",
+          "max-w-[85%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-xl px-3.5 py-2 text-sm leading-relaxed",
           isUser ? "bg-secondary text-secondary-foreground" : "border border-border bg-card",
         )}
       >

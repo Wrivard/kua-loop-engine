@@ -9,7 +9,12 @@ import { Input } from "@/components/ui/input";
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/";
+  // Anti open-redirect : n'accepter qu'un chemin interne (pas d'URL absolue ni //).
+  const rawNext = params.get("next") || "/";
+  const next =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") && !rawNext.startsWith("/\\")
+      ? rawNext
+      : "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

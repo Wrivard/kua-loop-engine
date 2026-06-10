@@ -5,7 +5,7 @@ import { FacadeIcon } from "@/components/facade-mark";
 import { StatusPill } from "@/components/status-pill";
 import { ApprovalActions } from "@/components/approval-actions";
 import { Badge } from "@/components/ui/badge";
-import { facadeColor, THREAD_STATUS_LABEL } from "@/lib/facade";
+import { facadeColor, facadeLabel, THREAD_STATUS_LABEL } from "@/lib/facade";
 import { timeAgo } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { ThreadListItem } from "@/lib/types";
@@ -38,7 +38,9 @@ export function ThreadRow({
       />
       {/* Zone cliquable */}
       <Link href={`/c/${thread.id}`} className="absolute inset-0 z-0">
-        <span className="sr-only">{thread.subject}</span>
+        <span className="sr-only">
+          {facadeLabel(thread.facade)} — {thread.subject}
+        </span>
       </Link>
 
       <FacadeIcon facade={thread.facade} className="pointer-events-none relative z-10" />
@@ -53,7 +55,7 @@ export function ThreadRow({
       </div>
 
       {showActions ? (
-        <div className="relative z-10 flex w-full items-center justify-start gap-3 pl-7 sm:w-auto sm:justify-end sm:pl-0">
+        <div className="relative z-10 flex w-full items-center gap-2 sm:w-auto sm:justify-end">
           <ApprovalActions runId={run!.id} onDecided={() => onDecided?.(thread.id)} />
         </div>
       ) : (
@@ -65,7 +67,7 @@ export function ThreadRow({
               {THREAD_STATUS_LABEL[thread.status]}
             </Badge>
           )}
-          <span className="hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground sm:inline">
+          <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
             {timeAgo(thread.last_activity_at)}
           </span>
         </div>

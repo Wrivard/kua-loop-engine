@@ -15,7 +15,7 @@ import type { InboxGroup } from "@/lib/types";
 export function InboxView() {
   const { data, loading } = useLiveQuery<InboxGroup[]>(
     getInboxGroups,
-    ["threads", "runs", "approvals"],
+    ["threads", "runs", "approvals", "projects"],
     [],
   );
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());

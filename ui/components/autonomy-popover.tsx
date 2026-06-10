@@ -37,11 +37,13 @@ function toDb(ui: AutonomyUI): { enabled: boolean; autonomy: Autonomy } {
   }
 }
 
+// Monochrome (doc 12) : la couleur est réservée à l'identité de façade et au
+// statut des runs. L'autonomie se distingue par le poids, jamais par une teinte.
 const PILL_TONE: Record<AutonomyUI, string> = {
   off: "text-muted-foreground",
   manuel: "text-foreground",
   approbation: "text-foreground",
-  auto: "text-amber-500",
+  auto: "text-foreground font-semibold",
 };
 
 /** Pill d'autonomie d'une façade (doc 12 : seul réglage de l'UI). Passer en
@@ -78,13 +80,14 @@ export function AutonomyPopover({ loop, allowAuto = true }: { loop: Loop; allowA
       }}
     >
       <PopoverTrigger
+        aria-label={`Autonomie : ${OPTIONS.find((o) => o.key === current)?.label}`}
         className={cn(
           "inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-accent",
           PILL_TONE[current],
         )}
       >
         {OPTIONS.find((o) => o.key === current)?.label}
-        <ChevronDown className="h-3 w-3 opacity-60" />
+        <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-1.5">
         <div className="space-y-0.5">
@@ -95,6 +98,7 @@ export function AutonomyPopover({ loop, allowAuto = true }: { loop: Loop; allowA
               <button
                 key={o.key}
                 disabled={disabled}
+                aria-current={active ? "true" : undefined}
                 onClick={() => choose(o.key)}
                 className={cn(
                   "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
@@ -104,13 +108,13 @@ export function AutonomyPopover({ loop, allowAuto = true }: { loop: Loop; allowA
                 )}
               >
                 <span className="mt-0.5 w-3.5 shrink-0">
-                  {active && <Check className="h-3.5 w-3.5" />}
+                  {active && <Check className="h-3.5 w-3.5" aria-hidden />}
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">
                     {o.label}
                     {o.key === "auto" && confirmAuto && (
-                      <span className="ml-2 text-xs font-normal text-amber-500">
+                      <span className="ml-2 text-xs font-medium text-foreground">
                         cliquer pour confirmer
                       </span>
                     )}

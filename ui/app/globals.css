@@ -55,6 +55,16 @@
     font-feature-settings: "liga", "calt";
   }
 
+  /* Mobile : 16px sur les champs évite le zoom auto de Safari iOS au focus
+     (cas #1 = écrire/approuver depuis le cell). Ne pas désactiver le pinch-zoom. */
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
   /* Scrollbars sobres (Vercel-like) */
   ::-webkit-scrollbar {
     width: 8px;

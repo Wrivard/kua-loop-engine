@@ -12,10 +12,41 @@ import { StatusPill } from "@/components/status-pill";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveQuery } from "@/lib/use-live-query";
-import { getProjectBySlug, getThread, getThreadMessages } from "@/lib/queries";
+import { getProjectBySlug, getRunsByThread, getThread, getThreadMessages } from "@/lib/queries";
 import { facadeColor, THREAD_STATUS_LABEL } from "@/lib/facade";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import type { MessageWithRun, Project, ThreadRow } from "@/lib/types";
+import type { MessageWithRun, Project, RunRow, ThreadRow } from "@/lib/types";
+
+/** Si un thread a des runs mais aucun message (tôt dans le cycle de vie),
+ *  on synthétise une intro + une carte par run — parité avec seedThreadMessages. */
+function synthFromRuns(thread: ThreadRow, runs: RunRow[]): MessageWithRun[] {
+  const out: MessageWithRun[] = [];
+  if (runs[0]) {
+    out.push({
+      id: `${thread.id}-intro`,
+      thread_id: thread.id,
+      role: "agent",
+      author: "Agent",
+      content: runs[0].goal,
+      run_id: null,
+      created_at: thread.created_at,
+      run: null,
+    });
+  }
+  for (const r of runs) {
+    out.push({
+      id: `${r.id}-msg`,
+      thread_id: thread.id,
+      role: "run",
+      author: null,
+      content: null,
+      run_id: r.id,
+      created_at: r.created_at,
+      run: r,
+    });
+  }
+  return out;
+}
 
 type ConversationData = {
   thread: ThreadRow | null;
@@ -31,16 +62,35 @@ export function ConversationView({ threadId }: { threadId: string }) {
         getThreadMessages(threadId),
       ]);
       const project = thread?.project_id ? await getProjectBySlug(thread.project_id) : null;
-      return { thread, project, messages };
+      // Fallback live : thread avec runs mais sans message → synthèse depuis les runs.
+      const finalMessages =
+        thread && messages.length === 0 ? synthFromRuns(thread, await getRunsByThread(threadId)) : messages;
+      return { thread, project, messages: finalMessages };
     },
-    ["messages", "runs", "threads", "approvals"],
+    [
+      { table: "messages", filter: `thread_id=eq.${threadId}` },
+      { table: "runs", filter: `thread_id=eq.${threadId}` },
+      { table: "threads", filter: `id=eq.${threadId}` },
+      "approvals",
+      "projects",
+    ],
     [threadId],
   );
 
-  // Messages envoyés en optimiste ; réconciliés dès que la requête se rafraîchit.
+  // Messages envoyés en optimiste ; on ne retire un optimiste QUE lorsque son
+  // équivalent persistant revient (sinon un événement realtime sans rapport
+  // ferait clignoter/disparaître la bulle avant son aller-retour DB).
   const [extra, setExtra] = useState<MessageWithRun[]>([]);
   useEffect(() => {
-    setExtra([]);
+    if (!data) return;
+    setExtra((prev) =>
+      prev.filter(
+        (o) =>
+          !data.messages.some(
+            (m) => m.role === o.role && m.author === o.author && m.content === o.content,
+          ),
+      ),
+    );
   }, [data]);
 
   const bottomRef = useRef<HTMLDivElement>(null);

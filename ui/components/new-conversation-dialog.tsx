@@ -109,6 +109,7 @@ export function NewConversationDialog({
                   <button
                     key={f}
                     onClick={() => setFacade(f)}
+                    aria-pressed={facade === f}
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                       facade === f
@@ -124,6 +125,7 @@ export function NewConversationDialog({
               <Textarea
                 value={demand}
                 onChange={(e) => setDemand(e.target.value)}
+                aria-label="Décris la demande"
                 placeholder="Ex : Le bouton « Réserver » ne fait rien sur mobile."
                 rows={3}
               />

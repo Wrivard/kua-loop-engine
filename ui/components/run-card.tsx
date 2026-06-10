@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ExternalLink, GitPullRequest } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/status-pill";
 import { ApprovalActions } from "@/components/approval-actions";
 import { RunDetailsDrawer } from "@/components/run-details-drawer";
+import { statusOf } from "@/lib/facade";
 import { formatCost } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { ApprovalDecision, RunRow, RunStatus } from "@/lib/types";
@@ -57,14 +58,26 @@ export function RunCard({
   run: RunRow;
   onDecided?: (decision: ApprovalDecision) => void;
 }) {
-  const [status, setStatus] = useState<RunStatus>(run.status);
+  // `decided` = override optimiste après une décision ; sinon on suit le prop
+  // (mis à jour par le realtime : running → verifying → awaiting → pushed…).
+  const [decided, setDecided] = useState<RunStatus | null>(null);
+  const status = decided ?? run.status;
+  useEffect(() => {
+    if (
+      decided &&
+      (run.status === "approved" || run.status === "pushed" || run.status === "rejected")
+    ) {
+      setDecided(null); // le backend a confirmé : on reprend le suivi realtime
+    }
+  }, [run.status, decided]);
+
   const cost = formatCost(run.cost_usd);
   const preview = externalHref(run.preview_url);
   const pr = externalHref(run.pr_url);
   const awaiting = status === "awaiting_approval";
 
   function handleDecided(decision: ApprovalDecision) {
-    setStatus(decision === "approved" ? "approved" : "rejected");
+    setDecided(decision === "approved" ? "approved" : "rejected");
     onDecided?.(decision);
   }
 
@@ -79,7 +92,7 @@ export function RunCard({
         {run.summary && <Line label="Fait">{run.summary}</Line>}
 
         {preview && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Frame label="Avant">
               <span className="text-xs text-muted-foreground">Site en production</span>
             </Frame>
@@ -132,7 +145,8 @@ function StatusNote({ status }: { status: RunStatus }) {
     return <span className="text-xs font-medium text-muted-foreground">Renvoyé à l&apos;agent</span>;
   }
   if (status === "running" || status === "preparing" || status === "verifying") {
-    return <span className="text-xs text-muted-foreground">L&apos;agent travaille…</span>;
+    // C'est le Runner qui exécute le code pendant un run, pas l'agent de façade.
+    return <span className="text-xs text-muted-foreground">Run · {statusOf(status).label}…</span>;
   }
   return null;
 }

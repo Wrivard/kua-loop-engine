@@ -50,6 +50,7 @@ export function Composer({
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}
         rows={1}
+        aria-label="Message à l'agent"
         placeholder="Écrire à l'agent…  (Entrée pour envoyer)"
         className="min-h-[40px] max-h-40 border-0 bg-transparent px-2 py-2 focus-visible:ring-0"
       />

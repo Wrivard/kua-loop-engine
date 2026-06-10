@@ -38,7 +38,13 @@ export function ProjectView({ slug }: { slug: string }) {
       ]);
       return { project, threads, loops, monthCost };
     },
-    ["threads", "runs", "loops", "approvals"],
+    [
+      { table: "threads", filter: `project_id=eq.${slug}` },
+      "runs", // runs n'a pas de project_id → écoute globale (refetch borné par les listes courtes)
+      { table: "loops", filter: `project_id=eq.${slug}` },
+      "approvals",
+      "projects",
+    ],
     [slug],
   );
 
@@ -157,15 +163,18 @@ export function ProjectView({ slug }: { slug: string }) {
         <div className="mt-6">
           <button
             onClick={() => setArchivedOpen((o) => !o)}
+            aria-expanded={archivedOpen}
+            aria-controls="archived-list"
             className="flex w-full items-center gap-2 rounded-md px-1 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ChevronRight
+              aria-hidden
               className={cn("h-4 w-4 transition-transform", archivedOpen && "rotate-90")}
             />
             Archivées · {archivedShown.length}
           </button>
           {archivedOpen && (
-            <div className="mt-1 space-y-1 opacity-70">
+            <div id="archived-list" className="mt-1 space-y-1 opacity-70">
               {archivedShown.map((t) => (
                 <ThreadRow key={t.id} thread={t} />
               ))}
@@ -189,6 +198,7 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
         active ? "border-foreground bg-accent" : "border-border hover:bg-accent/50",
