@@ -1,10 +1,11 @@
 import { AppShell } from "@/components/app-shell";
-import { InboxView } from "@/components/inbox-view";
+import { GlobalChat } from "@/components/global-chat";
 
+// Accueil chat-first : le composer conversationnel est l'interface par défaut.
 export default function Home() {
   return (
     <AppShell>
-      <InboxView />
+      <GlobalChat />
     </AppShell>
   );
 }

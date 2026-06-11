@@ -19,8 +19,10 @@ import {
 import { FACADE_ORDER } from "@/lib/facade";
 import { monthStartDate } from "@/lib/utils";
 import type {
+  AgentProposal,
   ApprovalDecision,
   Autonomy,
+  ChatMessage,
   Connection,
   Facade,
   InboxGroup,
@@ -321,6 +323,64 @@ export async function updateLoop(
   if (patch.enabled != null) clean.enabled = patch.enabled;
   if (Object.keys(clean).length === 0) return;
   const { error } = await supabase.from("loops").update(clean).eq("id", loopId);
+  if (error) throw error;
+}
+
+// --- Chat-first : sessions + messages (accueil conversationnel, migration 007) ---
+
+/** Dernière session de chat de l'utilisateur, sinon en crée une. null en preview. */
+export async function getOrCreateChatSession(email: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data } = await supabase
+    .from("chat_sessions")
+    .select("id")
+    .eq("user_email", email)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if ((data as { id: string } | null)?.id) return (data as { id: string }).id;
+  const { data: created, error } = await supabase
+    .from("chat_sessions")
+    .insert({ user_email: email })
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return (created as { id: string } | null)?.id ?? null;
+}
+
+/** Démarre une NOUVELLE session de chat. */
+export async function newChatSession(email: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase
+    .from("chat_sessions")
+    .insert({ user_email: email })
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+export async function getChatMessages(sessionId: string): Promise<ChatMessage[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data as ChatMessage[]) ?? [];
+}
+
+export async function insertChatMessage(
+  sessionId: string,
+  role: "user" | "brain" | "system",
+  content: string,
+  proposal?: AgentProposal | null,
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from("chat_messages")
+    .insert({ session_id: sessionId, role, content, proposal: proposal ?? null });
   if (error) throw error;
 }
 

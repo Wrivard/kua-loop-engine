@@ -8,7 +8,7 @@ import { ProposalCard, type ConfirmedProposal } from "@/components/proposal-card
 import { createLoop, createThread, ensureLoop, getProjects } from "@/lib/queries";
 import { currentIdentity } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import type { AgentProposal, Project } from "@/lib/types";
+import type { AgentProposal, ChatMessage, Project } from "@/lib/types";
 
 type Turn =
   | { id: string; kind: "text"; role: "user" | "brain" | "system"; text: string }
@@ -25,18 +25,25 @@ export function BrainChat({
   projectId,
   placeholder = "Décris ce que tu veux faire…",
   greeting,
+  initial,
+  onTurn,
   onCreated,
 }: {
   source?: string;
   projectId?: string;
   placeholder?: string;
   greeting?: string;
+  initial?: ChatMessage[];
+  onTurn?: (role: "user" | "brain" | "system", content: string) => void;
   onCreated?: (kind: "thread" | "loop", id: string) => void;
 }) {
   const router = useRouter();
-  const [turns, setTurns] = useState<Turn[]>(
-    greeting ? [{ id: uid(), kind: "text", role: "brain", text: greeting }] : [],
-  );
+  const [turns, setTurns] = useState<Turn[]>(() => {
+    if (initial && initial.length) {
+      return initial.map((m) => ({ id: uid(), kind: "text" as const, role: m.role, text: m.content }));
+    }
+    return greeting ? [{ id: uid(), kind: "text", role: "brain", text: greeting }] : [];
+  });
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,6 +59,7 @@ export function BrainChat({
 
   function add(t: Turn) {
     setTurns((prev) => [...prev, t]);
+    if (t.kind === "text" && onTurn) onTurn(t.role, t.text); // persistance (M3) — texte seulement
   }
 
   function history() {

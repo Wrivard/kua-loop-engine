@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, Menu, LogOut, Plus, Settings } from "lucide-react";
+import { Inbox, Menu, LogOut, MessageSquare, Plus, Settings } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,8 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
   const list = projects ?? [];
   const totalAwaiting = list.reduce((sum, p) => sum + p.awaiting, 0);
-  const isInbox = pathname === "/";
+  const isHome = pathname === "/";
+  const isInbox = pathname === "/inbox";
 
   async function handleSignOut() {
     await signOut();
@@ -64,6 +65,17 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
         <Link
           href="/"
+          onClick={onNavigate}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+            isHome ? "bg-brand/10 font-medium text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+          )}
+        >
+          <MessageSquare className="h-4 w-4" />
+          Accueil
+        </Link>
+        <Link
+          href="/inbox"
           onClick={onNavigate}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
