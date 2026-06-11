@@ -1,11 +1,11 @@
 import { AppShell } from "@/components/app-shell";
-import { GlobalChat } from "@/components/global-chat";
+import { BrainJournal } from "@/components/composer/brain-journal";
 
-// Accueil chat-first : le composer conversationnel est l'interface par défaut.
+// Accueil = journal de la conversation globale ; la saisie vit dans le dock omniprésent.
 export default function Home() {
   return (
     <AppShell>
-      <GlobalChat />
+      <BrainJournal />
     </AppShell>
   );
 }

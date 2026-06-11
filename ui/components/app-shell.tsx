@@ -17,6 +17,9 @@ import { NewProjectDialog } from "@/components/new-project-dialog";
 import { useLiveQuery } from "@/lib/use-live-query";
 import { getPendingProposals, getSidebarProjects } from "@/lib/queries";
 import { NotificationBell } from "@/components/notification-bell";
+import { ComposerProvider } from "@/components/composer/composer-context";
+import { ComposerDock } from "@/components/composer/composer-dock";
+import { ToastProvider } from "@/components/ui/toast";
 import { useCurrentUser, signOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import type { Proposal, SidebarProject } from "@/lib/types";
@@ -176,46 +179,52 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-/** Coquille de l'app : sidebar persistante (desktop) + drawer (mobile). */
+/** Coquille de l'app : sidebar (desktop) + drawer (mobile) + composer-dock omniprésent.
+ *  Layout flex-col h-dvh : le contenu scrolle, le dock reste épinglé en bas. */
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-dvh">
-      {/* Sidebar desktop */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border md:flex">
-        <SidebarNav />
-      </aside>
+    <ToastProvider>
+      <ComposerProvider>
+        <div className="flex h-dvh overflow-hidden">
+          {/* Sidebar desktop */}
+          <aside className="hidden h-dvh w-64 shrink-0 flex-col border-r border-border md:flex">
+            <SidebarNav />
+          </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Barre supérieure mobile */}
-        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-background/80 px-3 py-3 backdrop-blur md:hidden">
-          <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
-            <DialogTrigger
-              aria-label="Menu"
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              <Menu className="h-5 w-5" />
-            </DialogTrigger>
-            <DialogContent side="left" className="p-0">
-              <DialogTitle className="sr-only">Navigation</DialogTitle>
-              <DialogDescription className="sr-only">
-                Navigation entre l&apos;inbox et les projets
-              </DialogDescription>
-              <SidebarNav onNavigate={() => setMobileOpen(false)} />
-            </DialogContent>
-          </Dialog>
-          <span className="flex items-center gap-2 text-sm font-medium tracking-tight">
-            <span className="inline-block h-2 w-2 rounded-full bg-brand" />
-            Küa · Loops
-          </span>
-          <div className="ml-auto">
-            <NotificationBell />
+          <div className="flex h-dvh min-w-0 flex-1 flex-col">
+            {/* Barre supérieure mobile */}
+            <header className="z-30 flex shrink-0 items-center gap-2 border-b border-border bg-background/80 px-3 py-3 backdrop-blur md:hidden">
+              <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
+                <DialogTrigger
+                  aria-label="Menu"
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <Menu className="h-5 w-5" />
+                </DialogTrigger>
+                <DialogContent side="left" className="p-0">
+                  <DialogTitle className="sr-only">Navigation</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Navigation entre l&apos;inbox et les projets
+                  </DialogDescription>
+                  <SidebarNav onNavigate={() => setMobileOpen(false)} />
+                </DialogContent>
+              </Dialog>
+              <Link href="/" className="flex items-center gap-2 text-sm font-medium tracking-tight">
+                <span className="inline-block h-2 w-2 rounded-full bg-brand" />
+                Küa · Loops
+              </Link>
+              <div className="ml-auto">
+                <NotificationBell />
+              </div>
+            </header>
+
+            <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+            <ComposerDock />
           </div>
-        </header>
-
-        <main className="min-w-0 flex-1">{children}</main>
-      </div>
-    </div>
+        </div>
+      </ComposerProvider>
+    </ToastProvider>
   );
 }

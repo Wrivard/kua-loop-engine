@@ -1,18 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart3, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { ThreadRow } from "@/components/thread-row";
 import { EmptyState, ErrorState } from "@/components/empty-state";
 import { FacadeDot } from "@/components/facade-mark";
 import { AutonomyPopover } from "@/components/autonomy-popover";
-import { NewConversationDialog } from "@/components/new-conversation-dialog";
-import { BrainChatDialog } from "@/components/brain-chat-dialog";
 import { LoopConfigPanel } from "@/components/loop-config-panel";
 import { CostDashboard } from "@/components/cost-dashboard";
 import { ProjectSettingsDrawer } from "@/components/project-settings-drawer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useComposer } from "@/components/composer/composer-context";
 import { useLiveQuery } from "@/lib/use-live-query";
 import {
   getLoopsByProject,
@@ -59,6 +58,17 @@ export function ProjectView({ slug }: { slug: string }) {
   const project = data?.project ?? null;
   const threads = useMemo(() => data?.threads ?? [], [data]);
   const loops = useMemo(() => data?.loops ?? [], [data]);
+
+  // Scope le composer-dock sur ce projet (création de thread via la saisie en bas).
+  const { registerSink, setPageScope } = useComposer();
+  useEffect(() => {
+    registerSink(null);
+    setPageScope({ kind: "project", id: slug, name: project?.name ?? slug });
+    return () => {
+      registerSink(null);
+      setPageScope(null);
+    };
+  }, [slug, project?.name, registerSink, setPageScope]);
 
   const active = useMemo(() => threads.filter((t) => t.status !== "archived"), [threads]);
   const archived = useMemo(() => threads.filter((t) => t.status === "archived"), [threads]);
@@ -159,15 +169,6 @@ export function ProjectView({ slug }: { slug: string }) {
               </Button>
             }
           />
-          <BrainChatDialog
-            trigger={<Button size="sm">+ Nouveau</Button>}
-            title="Nouveau — via l'assistant"
-            description="Décris ce que tu veux ; l'assistant propose, tu confirmes."
-            source="ui"
-            projectId={project.id}
-            greeting={`On est sur ${project.name}. Qu'est-ce qu'on fait ? (un bug, une modif, une démo, un nouveau loop…)`}
-          />
-          <NewConversationDialog projectId={project.id} loops={loops} />
         </div>
       </div>
 
@@ -199,7 +200,7 @@ export function ProjectView({ slug }: { slug: string }) {
       ) : (
         <EmptyState
           title={filter === "all" ? "Aucune conversation active" : "Rien dans cette façade"}
-          description="Crée une conversation avec « Nouvelle »."
+          description="Tape en bas pour démarrer — décris un bug, une modif, une démo…"
           className="py-12"
         />
       )}

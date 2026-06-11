@@ -5,16 +5,15 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { MessageBubble } from "@/components/message-bubble";
 import { RunCard } from "@/components/run-card";
-import { Composer } from "@/components/composer";
 import { EmptyState, ErrorState } from "@/components/empty-state";
 import { FacadeTag } from "@/components/facade-mark";
 import { StatusPill } from "@/components/status-pill";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useComposerSink, type ComposerTurn } from "@/components/composer/composer-context";
 import { useLiveQuery } from "@/lib/use-live-query";
 import { getProjectBySlug, getRunsByThread, getThread, getThreadMessages } from "@/lib/queries";
 import { facadeColor, THREAD_STATUS_LABEL } from "@/lib/facade";
-import { isSupabaseConfigured } from "@/lib/supabase";
 import type { MessageWithRun, Project, RunRow, ThreadRow } from "@/lib/types";
 
 /** Si un thread a des runs mais aucun message (tôt dans le cycle de vie),
@@ -85,10 +84,7 @@ export function ConversationView({ threadId }: { threadId: string }) {
     if (!data) return;
     setExtra((prev) =>
       prev.filter(
-        (o) =>
-          !data.messages.some(
-            (m) => m.role === o.role && m.author === o.author && m.content === o.content,
-          ),
+        (o) => !data.messages.some((m) => m.role === o.role && m.content === o.content),
       ),
     );
   }, [data]);
@@ -98,6 +94,33 @@ export function ConversationView({ threadId }: { threadId: string }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
+
+  // Le dock (composer omniprésent) pousse les messages de ce thread → écho optimiste.
+  const thread0 = data?.thread ?? null;
+  useComposerSink(
+    useMemo(
+      () => ({
+        push: (t: ComposerTurn) => {
+          if (t.role !== "user") return;
+          setExtra((prev) => [
+            ...prev,
+            {
+              id: `local-${prev.length}-${t.text.length}`,
+              thread_id: threadId,
+              role: "user",
+              author: "Toi",
+              content: t.text,
+              run_id: null,
+              created_at: new Date().toISOString(),
+              run: null,
+            },
+          ]);
+        },
+      }),
+      [threadId],
+    ),
+    thread0 ? { kind: "thread", id: threadId, subject: thread0.subject, facade: thread0.facade } : null,
+  );
 
   if (error && !data) {
     return (
@@ -132,27 +155,11 @@ export function ConversationView({ threadId }: { threadId: string }) {
   const project = data?.project ?? null;
   const latestRun = [...messages].reverse().find((m) => m.run)?.run ?? null;
 
-  function onSend(content: string, author: string) {
-    setExtra((prev) => [
-      ...prev,
-      {
-        id: `local-${prev.length}-${content.length}`,
-        thread_id: threadId,
-        role: "user",
-        author,
-        content,
-        run_id: null,
-        created_at: new Date().toISOString(),
-        run: null,
-      },
-    ]);
-  }
-
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 sm:px-6">
+    <div className="mx-auto w-full max-w-3xl px-4 pb-6 sm:px-6">
       {/* Header */}
       <header
-        className="border-b border-border py-4"
+        className="sticky top-0 z-10 border-b border-border bg-background/85 py-4 backdrop-blur"
         style={{ boxShadow: `inset 3px 0 0 0 ${facadeColor(thread.facade)}` }}
       >
         <div className="pl-3">
@@ -180,7 +187,7 @@ export function ConversationView({ threadId }: { threadId: string }) {
       </header>
 
       {/* Fil */}
-      <div className="flex-1 space-y-4 py-6">
+      <div className="space-y-4 py-6">
         {messages.map((m) =>
           m.role === "run" && m.run ? (
             <RunCard key={m.id} run={m.run} />
@@ -189,16 +196,6 @@ export function ConversationView({ threadId }: { threadId: string }) {
           ),
         )}
         <div ref={bottomRef} />
-      </div>
-
-      {/* Composer */}
-      <div className="sticky bottom-0 border-t border-border bg-background/80 py-3 backdrop-blur">
-        <Composer threadId={threadId} onSend={onSend} />
-        {!isSupabaseConfigured && (
-          <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
-            Mode preview — l&apos;agent ne répond pas (pas de backend).
-          </p>
-        )}
       </div>
     </div>
   );
