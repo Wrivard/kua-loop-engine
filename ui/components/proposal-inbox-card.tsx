@@ -12,7 +12,7 @@ import { getProjects, setProposalStatus } from "@/lib/queries";
 import { currentIdentity } from "@/lib/auth";
 import { facadeLabel } from "@/lib/facade";
 import { inboxDetailModel } from "@/lib/inbox-state";
-import { timeAgo } from "@/lib/utils";
+import { cn, timeAgo } from "@/lib/utils";
 import type { Project, Proposal } from "@/lib/types";
 
 export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal; onResolved?: () => void }) {
@@ -20,7 +20,14 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
   const p = proposal.payload;
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
+
+  // Sortie animée (flow « vider l'inbox au pouce »).
+  function resolve() {
+    setLeaving(true);
+    setTimeout(() => onResolved?.(), 180);
+  }
 
   useEffect(() => {
     void getProjects().then(setProjects).catch(() => {});
@@ -35,7 +42,7 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
       const res = await applyProposal(cp);
       await setProposalStatus(proposal.id, "approved", await currentIdentity());
       setOpen(false);
-      onResolved?.();
+      resolve();
       if (res?.kind === "thread") router.push(`/c/${res.id}`);
       else if (res?.kind === "loop" || res?.kind === "project") router.push(`/p/${res.id}`);
     } catch {
@@ -50,7 +57,7 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
     try {
       await setProposalStatus(proposal.id, "dismissed", await currentIdentity());
       setOpen(false);
-      onResolved?.();
+      resolve();
     } finally {
       setBusy(false);
     }
@@ -66,7 +73,12 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border-strong">
+    <div
+      className={cn(
+        "overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border-strong",
+        leaving && "animate-collapse-out",
+      )}
+    >
       <InboxDetail
         proposal={proposal}
         projects={projects}
@@ -89,11 +101,11 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
             <div className="flex items-center gap-2 pt-0.5">
               <CostBadge usd={p.budget_usd} />
               {p.priority === "high" && (
-                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">
+                <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">
                   prioritaire
                 </span>
               )}
-              <span className="ml-auto text-[11px] text-brand">détails →</span>
+              <span className="ml-auto text-xs text-brand">détails →</span>
             </div>
           </button>
         }

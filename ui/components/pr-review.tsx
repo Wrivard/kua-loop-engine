@@ -20,22 +20,25 @@ import { insertApproval } from "@/lib/queries";
 import { currentIdentity } from "@/lib/auth";
 import { Markdown } from "@/lib/markdown";
 import { reconcileVerify } from "@/lib/verify-reconcile";
+import { cn } from "@/lib/utils";
 import type { ApprovalDecision, PrDetail, PrFile } from "@/lib/types";
 
+/** Diff lisible : fond code distinct, +/− en sémantique SOURDE (fond teinté pleine
+ *  ligne + texte saturé), hunks en info — jamais d'aplats criards. */
 function DiffLines({ patch }: { patch: string }) {
   return (
-    <pre className="overflow-x-auto bg-muted/30 p-2 font-mono text-[11px] leading-relaxed">
+    <pre className="overflow-x-auto border-t border-border bg-muted/60 py-1.5 font-mono text-xs">
       {patch.split("\n").map((line, i) => {
-        const c =
+        const cls =
           line.startsWith("+") && !line.startsWith("+++")
-            ? "text-emerald-500"
+            ? "bg-success-soft text-success"
             : line.startsWith("-") && !line.startsWith("---")
-              ? "text-red-500"
+              ? "bg-danger-soft text-danger"
               : line.startsWith("@@")
-                ? "text-sky-500"
+                ? "text-info"
                 : "text-muted-foreground";
         return (
-          <div key={i} className={c}>
+          <div key={i} className={cn("px-3 [overflow-wrap:anywhere]", cls)}>
             {line || " "}
           </div>
         );
@@ -47,17 +50,22 @@ function DiffLines({ patch }: { patch: string }) {
 function DiffFile({ file }: { file: PrFile }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div className="overflow-hidden rounded-md border border-border">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-xs hover:bg-accent/50"
+        aria-expanded={open}
+        className="flex h-9 w-full items-center gap-2 px-2.5 text-left text-xs transition-colors duration-150 hover:bg-accent"
       >
-        {open ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-faint" />
+        )}
         <span className="min-w-0 flex-1 truncate font-mono">{file.filename}</span>
-        <span className="shrink-0 font-mono text-[10px]">
-          <span className="text-emerald-500">+{file.additions ?? 0}</span>{" "}
-          <span className="text-red-500">−{file.deletions ?? 0}</span>
+        <span className="shrink-0 font-mono tabular-nums">
+          <span className="text-success">+{file.additions ?? 0}</span>{" "}
+          <span className="text-danger">−{file.deletions ?? 0}</span>
         </span>
       </button>
       {open && <DiffLines patch={file.patch || "(pas de patch)"} />}
@@ -145,8 +153,8 @@ export function PrReview({
           <DialogDescription>
             {pr ? (
               <span className="font-mono text-xs">
-                <span className="text-emerald-500">+{pr.additions ?? 0}</span>{" "}
-                <span className="text-red-500">−{pr.deletions ?? 0}</span> · {pr.changed_files ?? 0} fichier(s) ·{" "}
+                <span className="text-success">+{pr.additions ?? 0}</span>{" "}
+                <span className="text-danger">−{pr.deletions ?? 0}</span> · {pr.changed_files ?? 0} fichier(s) ·{" "}
                 {pr.commits ?? 0} commit(s){pr.draft ? " · draft" : ""}
               </span>
             ) : (
@@ -157,7 +165,7 @@ export function PrReview({
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
           {loading && <p className="py-8 text-center text-sm text-muted-foreground">Chargement…</p>}
-          {note && <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-500">{note}</p>}
+          {note && <p className="rounded-md bg-warn-soft px-3 py-2 text-xs text-warn">{note}</p>}
 
           {run && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -177,7 +185,7 @@ export function PrReview({
           )}
           {reconciled?.report && <VerdictCard report={reconciled.report} defaultOpen={reconciled.report.verdict === "FAIL"} />}
 
-          {data?.truncated && <p className="text-[11px] text-amber-500">⚠️ Diff volumineux — tronqué pour l&apos;affichage.</p>}
+          {data?.truncated && <p className="text-xs text-warn">⚠️ Diff volumineux — tronqué pour l&apos;affichage.</p>}
           <div className="space-y-1.5">
             {(data?.files ?? []).map((f) => (
               <DiffFile key={f.filename} file={f} />
@@ -204,18 +212,14 @@ export function PrReview({
                   Ouvrir la loop →
                 </button>
               )}
-              <Button variant="ghost" size="sm" disabled={busy} onClick={() => setMode("changes")}>
-                Refaire avec nuance
-              </Button>
-              <Button variant="outline" size="sm" disabled={busy} onClick={() => void decide("rejected")}>
+              {/* Hiérarchie : Confirmer primaire accent · Refaire secondaire · Rejeter tertiaire. */}
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => void decide("rejected")}>
                 Rejeter
               </Button>
-              <Button
-                size="sm"
-                disabled={busy}
-                className="bg-brand text-brand-foreground hover:bg-brand/90"
-                onClick={() => void decide("approved")}
-              >
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => setMode("changes")}>
+                Refaire avec nuance
+              </Button>
+              <Button size="sm" disabled={busy} onClick={() => void decide("approved")}>
                 {busy ? "…" : "Confirmer"}
               </Button>
             </div>

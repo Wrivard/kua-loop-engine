@@ -34,7 +34,7 @@ export type ConfirmedProposal = AgentProposal & { project_id?: string };
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
       {children}
     </label>
   );
@@ -102,7 +102,7 @@ export function ProposalCard({
           {ACTION_LABEL[proposal.action] ?? proposal.action}
         </span>
         {proposal.priority === "high" && (
-          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">prioritaire</span>
+          <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">prioritaire</span>
         )}
       </div>
       {proposal.resume_humain && <Markdown className="text-muted-foreground">{proposal.resume_humain}</Markdown>}
@@ -180,7 +180,7 @@ export function ProposalCard({
           />
         </Field>
 
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Autonomie : <strong>approve_final</strong> (le mode auto n'est pas encore activable). Tu confirmes chaque livraison.
         </p>
       </div>

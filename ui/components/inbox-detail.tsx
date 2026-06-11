@@ -23,7 +23,7 @@ import type { Project, Proposal } from "@/lib/types";
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
       {children}
     </div>
   );
@@ -77,7 +77,7 @@ export function InboxDetail({
             <span className="ml-auto shrink-0">{timeAgo(proposal.created_at)}</span>
           </div>
           <DialogTitle className="text-base leading-snug">{p.title}</DialogTitle>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-brand">{actionLabel}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-brand">{actionLabel}</p>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
@@ -128,21 +128,21 @@ export function InboxDetail({
                 <CostBadge usd={p.budget_usd} />
                 <span className="text-xs text-muted-foreground">budget / run</span>
                 {p.priority === "high" && (
-                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">
+                  <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">
                     prioritaire
                   </span>
                 )}
               </div>
 
               {p.questions_manquantes?.length > 0 && (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-amber-500">
+                <div className="rounded-lg border border-warn/30 bg-warn-soft p-3">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-warn">
                     À préciser
                   </p>
                   <ul className="space-y-1">
                     {p.questions_manquantes.map((q, i) => (
                       <li key={i} className="flex gap-2 text-xs text-muted-foreground">
-                        <span className="mt-[0.4em] h-1 w-1 shrink-0 rounded-full bg-amber-500" aria-hidden />
+                        <span className="mt-[0.4em] h-1 w-1 shrink-0 rounded-full bg-warn" aria-hidden />
                         <span className="min-w-0 flex-1">{q}</span>
                       </li>
                     ))}

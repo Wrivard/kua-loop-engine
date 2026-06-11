@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { insertApproval } from "@/lib/queries";
 import { currentIdentity } from "@/lib/auth";
 import { facadeLabel } from "@/lib/facade";
-import { timeAgo } from "@/lib/utils";
+import { cn, timeAgo } from "@/lib/utils";
 import type { ThreadListItem } from "@/lib/types";
 
 /** Livraison à confirmer, dans l'inbox : tap → module de revue (avant→après) SUR PLACE
@@ -26,7 +26,14 @@ export function InboxAwaitingCard({
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const run = thread.latest_run;
+
+  // Sortie animée : la carte se replie, puis l'item suivant remonte (flow au pouce).
+  function resolve() {
+    setLeaving(true);
+    setTimeout(onResolved, 180);
+  }
 
   async function decide(decision: "approved" | "rejected") {
     if (!run) return;
@@ -35,7 +42,7 @@ export function InboxAwaitingCard({
       const who = await currentIdentity();
       await insertApproval(run.id, decision, who);
       toast(decision === "approved" ? "Confirmé ✅" : "Rejeté", decision === "approved" ? "success" : "default");
-      onResolved();
+      resolve();
     } catch {
       toast("Action échouée", "error");
     } finally {
@@ -59,7 +66,7 @@ export function InboxAwaitingCard({
         {run && <StatusBadge status={run.status} />}
         <CostBadge usd={run?.cost_usd} />
         {run?.pr_url && (
-          <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-brand">
+          <span className="ml-auto inline-flex items-center gap-1 text-xs text-brand">
             <GitPullRequest className="h-3 w-3" /> revue →
           </span>
         )}
@@ -68,12 +75,17 @@ export function InboxAwaitingCard({
   );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border-strong">
+    <div
+      className={cn(
+        "overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border-strong",
+        leaving && "animate-collapse-out",
+      )}
+    >
       {run?.pr_url ? (
         <PrReview
           runId={run.id}
           threadId={thread.id}
-          onDecided={onResolved}
+          onDecided={resolve}
           trigger={
             <button type="button" className="block w-full p-3 text-left transition-colors hover:bg-accent/30">
               {content}
