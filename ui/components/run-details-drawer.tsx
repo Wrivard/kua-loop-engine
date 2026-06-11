@@ -10,6 +10,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { StatusPill } from "@/components/status-pill";
+import { BranchChip, PrLink } from "@/components/ui/chips";
+import { Markdown } from "@/lib/markdown";
 import { formatCost, timeAgo } from "@/lib/utils";
 import type { RunRow } from "@/lib/types";
 
@@ -53,19 +55,12 @@ export function RunDetailsDrawer({ run }: { run: RunRow }) {
             {run.iterations != null && <Row label="Itérations">{run.iterations}</Row>}
             {run.branch && (
               <Row label="Branche">
-                <code className="font-mono text-xs">{run.branch}</code>
+                <BranchChip branch={run.branch} className="max-w-[12rem]" />
               </Row>
             )}
             {run.pr_url && (
               <Row label="PR">
-                <a
-                  href={externalHref(run.pr_url)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                >
-                  voir <ExternalLink className="h-3 w-3" />
-                </a>
+                <PrLink url={run.pr_url} />
               </Row>
             )}
             {run.preview_url && (
@@ -85,7 +80,7 @@ export function RunDetailsDrawer({ run }: { run: RunRow }) {
           {run.summary && (
             <div className="mt-4 space-y-1.5">
               <p className="text-xs font-medium text-muted-foreground">Résumé</p>
-              <p className="text-sm leading-relaxed">{run.summary}</p>
+              <Markdown>{run.summary}</Markdown>
             </div>
           )}
 

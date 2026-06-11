@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { facadeColor } from "@/lib/facade";
+import { Markdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import type { AgentProposal, Project } from "@/lib/types";
 
@@ -65,8 +66,12 @@ export function ProposalCard({
 
   if (proposal.action === "none") {
     return (
-      <div className="rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">
-        {proposal.resume_humain || "Rien à faire pour l'instant."}
+      <div className="rounded-lg border border-border bg-card p-3 text-muted-foreground">
+        {proposal.resume_humain ? (
+          <Markdown className="text-muted-foreground">{proposal.resume_humain}</Markdown>
+        ) : (
+          <p className="text-sm">Rien à faire pour l&apos;instant.</p>
+        )}
       </div>
     );
   }
@@ -100,7 +105,7 @@ export function ProposalCard({
           <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">prioritaire</span>
         )}
       </div>
-      {proposal.resume_humain && <p className="text-sm text-muted-foreground">{proposal.resume_humain}</p>}
+      {proposal.resume_humain && <Markdown className="text-muted-foreground">{proposal.resume_humain}</Markdown>}
 
       <div className="space-y-2.5">
         <Field label="Titre">

@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { useLiveQuery } from "@/lib/use-live-query";
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/queries";
+import { plainText } from "@/lib/markdown-parse";
 import { timeAgo } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
@@ -69,7 +70,7 @@ export function NotificationBell() {
                 <span className="shrink-0">{EMOJI[n.kind] ?? "🔔"}</span>
                 <span className="min-w-0 flex-1">
                   <span className={cn("block truncate", !n.read && "font-medium")}>{n.title}</span>
-                  {n.body && <span className="block truncate text-muted-foreground">{n.body}</span>}
+                  {n.body && <span className="block truncate text-muted-foreground">{plainText(n.body)}</span>}
                   <span className="text-[10px] text-muted-foreground">{timeAgo(n.created_at)}</span>
                 </span>
                 {!n.read && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />}

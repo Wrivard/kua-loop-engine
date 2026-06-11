@@ -140,3 +140,28 @@ parsing headings/gras/code/listes/liens), `inbox-detail` view-model (loading/emp
 - Refonte fine des 5 onglets Réglages (formulaires).
 - Tests de composants React complets (RTL+jsdom) — on teste la logique pure cette fois.
 - Barre de progression dépensé/budget dans le dashboard.
+
+---
+
+## RÉSULTAT (passes B→E livrées)
+
+**P0 corrigés**
+- Markdown brut partout → composant `<Markdown>` sûr : chat (accueil + thread), résumés de run,
+  `resume_humain` (carte de proposition chat + inbox), revue PR, notifications (preview `plainText`).
+- Rapport de vérif (mur de texte) → `VerdictCard` compact (badge + claim + détails repliés) dans la
+  carte de run ET la revue PR. Plus aucun dump de `verify_output`.
+- Inbox « confirmation à l'aveugle » → `InboxDetail` (drawer plein écran mobile) : pourquoi / ce qui
+  sera fait / où / coût / questions, à 1 tap. Aperçu en clair (plus de markdown brut).
+- Hiérarchie : user = bulle, agent = markdown, system = ligne d'événement fine, livrable = carte PR
+  avec chips (PrLink/BranchChip/CostBadge).
+
+**P1 corrigés** : repli des murs de texte (`<Expandable>`) ; chips coût/PR/branche uniformes (chat,
+revue PR, dashboard, drawer détails) ; SourceChip (icône+couleur) ; indicateur « le cerveau réfléchit… ».
+
+**Audit mobile final (380px)** — tous les `<pre>` restants sont sûrs (`whitespace-pre-wrap break-words`
+ou `overflow-auto` borné) : `mcp-wizard`, `system-logs`, `system-debug`, `system-health` OK ; le diff
+(`pr-review`) scrolle horizontalement dans son dialog (borné). Détails plein écran mobile (drawer droite
+`w-full`). Champs à 16px (anti-zoom iOS) déjà en place. Cibles tap : PR/coût/branche désormais en chips.
+
+**Restant P2** (voir liste ci-dessus) : pas de markdown brut subsistant ; uniquement du polish
+(coloration syntaxique diff, formulaires réglages, barre budget, tests RTL).

@@ -12,9 +12,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { VerdictCard } from "@/components/verdict-card";
+import { CostBadge } from "@/components/ui/chips";
 import { insertApproval } from "@/lib/queries";
 import { currentIdentity } from "@/lib/auth";
-import { cn } from "@/lib/utils";
+import { Markdown } from "@/lib/markdown";
 import type { ApprovalDecision, PrDetail, PrFile } from "@/lib/types";
 
 function DiffLines({ patch }: { patch: string }) {
@@ -72,7 +74,6 @@ export function PrReview({
   const [data, setData] = useState<PrDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [showVerify, setShowVerify] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [mode, setMode] = useState<"view" | "changes">("view");
   const [note, setNote] = useState<string | null>(null);
@@ -110,7 +111,6 @@ export function PrReview({
 
   const run = data?.run;
   const pr = data?.pr;
-  const verifyOk = run?.verify_status === "passed" || run?.verify_status === "skipped";
 
   return (
     <Dialog
@@ -146,8 +146,8 @@ export function PrReview({
           {note && <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-500">{note}</p>}
 
           {run && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              {run.cost_usd != null && <span>coût {run.cost_usd} $</span>}
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <CostBadge usd={run.cost_usd} />
               {pr?.html_url && (
                 <a href={pr.html_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand">
                   ouvrir sur GitHub <ExternalLink className="h-3 w-3" />
@@ -157,29 +157,16 @@ export function PrReview({
           )}
 
           {run?.summary && (
-            <div className="rounded-lg border border-border bg-card p-3 text-sm">{run.summary}</div>
+            <div className="rounded-lg border border-border bg-card p-3">
+              <Markdown>{run.summary}</Markdown>
+            </div>
           )}
 
           {run?.verify_status && (
-            <div className="rounded-lg border border-border p-2.5">
-              <button
-                type="button"
-                onClick={() => setShowVerify((v) => !v)}
-                className="flex w-full items-center gap-2 text-left text-xs"
-              >
-                <span
-                  className={cn("inline-block h-2 w-2 rounded-full", verifyOk ? "bg-emerald-500" : "bg-red-500")}
-                />
-                <span className="font-medium">Vérif : {run.verify_status}</span>
-                <span className="text-muted-foreground">{run.verify_command || ""}</span>
-                <span className="ml-auto text-muted-foreground">{showVerify ? "masquer" : "log"}</span>
-              </button>
-              {showVerify && run.verify_output && (
-                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words bg-muted/30 p-2 font-mono text-[10px]">
-                  {run.verify_output}
-                </pre>
-              )}
-            </div>
+            <VerdictCard
+              input={{ status: run.verify_status, command: run.verify_command, output: run.verify_output }}
+              defaultOpen={run.verify_status === "failed"}
+            />
           )}
 
           {data?.truncated && (
