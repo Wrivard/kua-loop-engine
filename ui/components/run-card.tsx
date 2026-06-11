@@ -102,17 +102,20 @@ export function RunCard({ runs, onDecided }: { runs: RunRow[]; onDecided?: (deci
         </div>
       )}
 
-      <div className="space-y-3 px-4 pb-3">
-        {report && <VerdictCard report={report} defaultOpen={report.verdict === "FAIL"} />}
+      {/* Corps : verdict + résumé serrés (un groupe) ; l'aperçu respire à part. */}
+      <div className="px-4 pb-3">
+        <div className="space-y-2">
+          {report && <VerdictCard report={report} defaultOpen={report.verdict === "FAIL"} />}
 
-        {body && (
-          <Expandable collapsedHeight={176} fadeClass="from-card">
-            <Markdown className="text-muted-foreground">{body}</Markdown>
-          </Expandable>
-        )}
+          {body && (
+            <Expandable collapsedHeight={176} fadeClass="from-card">
+              <Markdown className="text-muted-foreground">{body}</Markdown>
+            </Expandable>
+          )}
+        </div>
 
         {preview && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Frame label="Avant">
               <span className="text-xs text-muted-foreground">Site en production</span>
             </Frame>

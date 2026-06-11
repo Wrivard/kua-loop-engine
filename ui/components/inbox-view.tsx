@@ -34,7 +34,7 @@ export function InboxView() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-[45rem] px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-xl font-semibold tracking-tight">Inbox</h1>
         {total + pendingProps.length > 0 && (
@@ -81,9 +81,10 @@ export function InboxView() {
           {groups.map((g) => (
             <section key={g.project.id}>
               <div className="mb-2 flex items-center gap-2 px-1">
-                {/* Libellé (pas un lien) : on agit DANS l'inbox ; sortie via « Ouvrir la loop ». */}
-                <span className="text-sm font-medium tracking-tight">{g.project.name}</span>
-                <span className="text-xs tabular-nums text-muted-foreground">{g.threads.length}</span>
+                {/* Étiquette de section (pas un lien — on agit DANS l'inbox) : tertiaire,
+                    pour que les SUJETS des cartes dominent. */}
+                <span className="text-xs font-medium uppercase tracking-wide text-faint">{g.project.name}</span>
+                <span className="text-xs tabular-nums text-faint">{g.threads.length}</span>
               </div>
               <div className="space-y-2">
                 {g.threads.map((t) => (

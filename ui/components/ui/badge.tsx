@@ -11,7 +11,7 @@ const Badge = React.forwardRef<
     ref={ref}
     className={cn(
       // transition-colors : la mutation d'état (carte de run) glisse au lieu de sauter.
-      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-150",
+      "inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors duration-150",
       className,
     )}
     {...props}

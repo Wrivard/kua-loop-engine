@@ -82,7 +82,7 @@ export function BranchChip({ branch, className }: { branch: string | null | unde
       )}
       title={branch}
     >
-      <GitBranch className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+      <GitBranch className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
       <span className="truncate">{branch}</span>
     </span>
   );
@@ -126,7 +126,7 @@ const SOURCE: Record<string, { label: string; icon: LucideIcon; color: string }>
   discord: { label: "Discord", icon: MessageSquare, color: "text-[#5865F2]" },
   cron: { label: "Cron", icon: Clock, color: "text-info" },
   sentry: { label: "Sentry", icon: AlertTriangle, color: "text-[#e1567c]" },
-  webhook: { label: "Webhook", icon: Webhook, color: "text-violet-400" },
+  webhook: { label: "Webhook", icon: Webhook, color: "text-info" },
 };
 
 export function SourceChip({ source, className }: { source: string; className?: string }) {
@@ -139,7 +139,7 @@ export function SourceChip({ source, className }: { source: string; className?: 
         className,
       )}
     >
-      <Icon className={cn("h-3 w-3 shrink-0", s.color)} strokeWidth={1.75} />
+      <Icon className={cn("h-3.5 w-3.5 shrink-0", s.color)} strokeWidth={1.75} />
       {s.label}
     </span>
   );

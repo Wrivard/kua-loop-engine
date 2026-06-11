@@ -36,6 +36,11 @@ blanc 16 % (hover de carte interactive, séparation appuyée) ; `input` = blanc 
 `info` (bleu). Chacune : `text-{x}` saturé + `bg-{x}-soft` (10–12 %). **Plus jamais** de
 `emerald-500/red-500/...` en dur — passer par ces tokens (statuts runs : `lib/facade.ts`).
 
+**Canal IDENTITÉ (exception délibérée)** : les couleurs d'identité ne sont pas des sémantiques —
+façades (`facade.*`), marques de services (Discord `#5865F2`, Sentry `#e1567c` dans `SourceChip`),
+teintes de connecteurs (`connector-icon`, data-driven en style inline). On ne les « tokenise » pas
+en success/info : Discord n'est pas « info ». Ce canal reste rare et réservé à l'identification.
+
 ## 3. Typographie (Geist — une seule famille)
 **5 tailles, point final** (échelle encodée dans `tailwind.config`, les défauts au-delà sont retirés) :
 | Classe | px / lh | Usage |
@@ -71,8 +76,9 @@ petites cartes) · `rounded-lg` 14 px (cartes, dialogs, dock). `rounded-xl` = al
   actions à droite. Un seul élément dominant.
 - **ComposerDock** : surface-élevée flottante (`shadow-float`), focus-ring brand, placeholder utile,
   état « réfléchit » typographique (pas de spinner).
-- **Bulles** : user = compacte, droite, `secondary` ; agent = prose sur `card`, markdown éditorial
-  (titres à peine plus grands, listes aérées, inline-code discret).
+- **Bulles** : user = compacte, droite, `secondary`, **coin bas-droit cassé** (`rounded-lg
+  rounded-br-sm` — signature voulue, composée de rayons système) ; agent = prose SANS bulle,
+  markdown éditorial (titres à peine plus grands, listes aérées, inline-code discret).
 - **Événements** : `text-xs text-faint`, ligne fine — visuellement en retrait du contenu.
 
 ## 7. Règles pour le futur

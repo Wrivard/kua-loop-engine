@@ -32,7 +32,7 @@ export function Expandable({
     <div className={className}>
       <div
         ref={ref}
-        className="relative overflow-hidden transition-[max-height] duration-200"
+        className="relative overflow-hidden transition-[max-height] duration-150"
         style={{ maxHeight: open ? undefined : collapsedHeight }}
       >
         {children}

@@ -112,7 +112,7 @@ export function ActivityView() {
   const failedN = (data?.runs ?? []).filter((r) => FAILED.has(r.status)).length;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-[45rem] px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-5">
         <h1 className="text-xl font-semibold tracking-tight">Activité</h1>
         <p className="mt-1 text-sm text-muted-foreground">Santé du moteur · coûts · ce qui roule.</p>

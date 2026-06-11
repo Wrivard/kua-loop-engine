@@ -61,9 +61,9 @@ export function BrainJournal() {
 
   return (
     <div className="mx-auto flex w-full max-w-[45rem] flex-col px-4 py-5 sm:px-6">
-      <div className="mb-4 flex items-start justify-between">
+      <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
             <span className="inline-block h-2 w-2 rounded-full bg-brand" />
             Küa
           </h1>
@@ -81,7 +81,7 @@ export function BrainJournal() {
       </div>
 
       {ready && turns.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+        <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
           <p className="text-sm">Salut 👋 Décris un bug, une modif, une démo — ou demande un nouveau loop.</p>
           <p className="mt-1 text-xs text-muted-foreground">Tape en bas ↓ — ou « @projet » pour cibler un client.</p>
         </div>

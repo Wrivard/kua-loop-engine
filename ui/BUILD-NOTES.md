@@ -552,3 +552,21 @@ gauche/actions droite séparée par un filet) ; dock barre collée pleine largeu
 (surface élevée + shadow-float + dégradé de fond, focus border brand, « le cerveau réfléchit » avec
 point brand pulsé) ; chips hétéroclites → **baseline h-6 unifiée** (rect = méta techniques, pills =
 états/sources).
+
+**V3→V6 — avant/après (suite)** :
+- **Inbox/revue** : diff gris plat → fonds sémantiques sourds pleine ligne (+/−), en-têtes mono h-9,
+  compteurs tabulaires ; 6 boutons confus → Confirmer (accent) · Refaire (outline) · Rejeter (ghost) ;
+  sortie d'item animée (collapse 180ms) ; étiquettes de groupe projet → tertiaires (les sujets dominent).
+- **Toutes vues** : 51 tailles magiques (9-11px) → échelle stricte ; toutes couleurs en dur → tokens
+  sémantiques (RUN_STATUS/chips/diff/toasts/notifs) ; emoji d'état → icônes lucide fines tonales ;
+  étiquettes uppercase → tertiaires ; chiffres d'Activité en héros (xl tabular) ; largeur 45rem partout.
+- **Fini** : focus clavier GLOBAL (anneau brand sur tout focusable, custom inclus) ; contraste AA
+  recalibré (faint 48 % dark / 42 % light) ; skeletons à hauteur réelle (zéro shift) ; reduced-motion ;
+  sélection brand ; une seule ombre (float) ; baselines h-6 unifiées (chips + badges + icônes 3.5).
+- **Audit adversarial final (5 critiques)** : 18 correctifs appliqués (rayons/ombres/durées résiduels,
+  hiérarchie des titres xl, rythmes internes différenciés, baselines) ; faux positifs rejetés et
+  DOCUMENTÉS dans DESIGN-SYSTEM (canal identité Discord/Sentry/connecteurs ; coin de bulle signature ;
+  focus global couvrant les éléments custom ; outline-none sur conteneurs Radix sans effet enfants).
+
+**Règles pour le futur** : DESIGN-SYSTEM.md §7 — toute nouvelle feature reste dans les tokens ;
+une couleur/taille hors-système n'existe pas ; chercher le composant partagé avant d'en créer un.

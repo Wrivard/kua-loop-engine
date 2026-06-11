@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { getLoopsByProject, getProjectActivity } from "@/lib/queries";
-import { PrLink } from "@/components/ui/chips";
+import { PrLink, StatusBadge } from "@/components/ui/chips";
 import { facadeColor, facadeLabel, statusOf } from "@/lib/facade";
 import { cn, formatCost, timeAgo } from "@/lib/utils";
 import type { ActivityRun, Loop } from "@/lib/types";
@@ -110,9 +110,7 @@ export function CostDashboard({
                       />
                       <span className="min-w-0 flex-1 truncate">{r.subject || facadeLabel(r.facade)}</span>
                       <span className="shrink-0 tabular-nums text-muted-foreground">{formatCost(num(r.cost_usd))}</span>
-                      <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-xs", statusOf(r.status).classes)}>
-                        {statusOf(r.status).label}
-                      </span>
+                      <StatusBadge status={r.status} className="shrink-0" />
                       {r.pr_url && <PrLink url={r.pr_url} className="shrink-0 border-0 px-0" />}
                       <span className="hidden shrink-0 text-muted-foreground sm:inline">{timeAgo(r.created_at)}</span>
                     </div>

@@ -186,7 +186,8 @@ export function PrReview({
           {reconciled?.report && <VerdictCard report={reconciled.report} defaultOpen={reconciled.report.verdict === "FAIL"} />}
 
           {data?.truncated && <p className="text-xs text-warn">⚠️ Diff volumineux — tronqué pour l&apos;affichage.</p>}
-          <div className="space-y-1.5">
+          {/* Le diff = l'élément majeur de la revue : il respire au-dessus. */}
+          <div className="space-y-1.5 pt-2">
             {(data?.files ?? []).map((f) => (
               <DiffFile key={f.filename} file={f} />
             ))}

@@ -80,7 +80,7 @@ export function InboxDetail({
           <p className="text-xs font-medium uppercase tracking-wide text-brand">{actionLabel}</p>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
           {edit ? (
             <ProposalCard
               proposal={p}

@@ -92,7 +92,7 @@ export function ProjectView({ slug }: { slug: string }) {
 
   if (error && !data) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-[45rem] px-4 py-8 sm:px-6">
         <ErrorState message={error} onRetry={() => void refetch()} />
       </div>
     );
@@ -100,7 +100,7 @@ export function ProjectView({ slug }: { slug: string }) {
 
   if (loading && !data) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-[45rem] px-4 py-8 sm:px-6">
         <Skeleton className="h-7 w-48" />
         <Skeleton className="mt-6 h-9 w-full" />
         <div className="mt-4 space-y-2">
@@ -121,7 +121,7 @@ export function ProjectView({ slug }: { slug: string }) {
   const cost = formatCost(data?.monthCost);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-[45rem] px-4 py-6 sm:px-6 sm:py-8">
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-xl font-semibold tracking-tight">{project.name}</h1>

@@ -125,7 +125,7 @@ export function ConversationView({ threadId }: { threadId: string }) {
     <div className="mx-auto w-full max-w-[45rem] px-4 pb-6 sm:px-6">
       {/* Header */}
       <header
-        className="sticky top-0 z-10 border-b border-border bg-background/85 py-4 backdrop-blur"
+        className="sticky top-0 z-10 border-b border-border bg-background/85 py-3 backdrop-blur"
         style={{ boxShadow: `inset 3px 0 0 0 ${facadeColor(thread.facade)}` }}
       >
         <div className="pl-3">
@@ -139,7 +139,7 @@ export function ConversationView({ threadId }: { threadId: string }) {
             </Link>
           )}
           <div className="mt-1 flex items-start justify-between gap-3">
-            <h1 className="min-w-0 flex-1 truncate text-base font-semibold tracking-tight">{thread.subject}</h1>
+            <h1 className="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight">{thread.subject}</h1>
             {latest ? (
               <StatusPill status={latest.status} className="mt-0.5 shrink-0" />
             ) : (

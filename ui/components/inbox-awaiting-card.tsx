@@ -67,7 +67,7 @@ export function InboxAwaitingCard({
         <CostBadge usd={run?.cost_usd} />
         {run?.pr_url && (
           <span className="ml-auto inline-flex items-center gap-1 text-xs text-brand">
-            <GitPullRequest className="h-3 w-3" /> revue →
+            <GitPullRequest className="h-3.5 w-3.5" strokeWidth={1.75} /> revue →
           </span>
         )}
       </div>

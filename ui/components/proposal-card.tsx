@@ -95,7 +95,7 @@ export function ProposalCard({
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="space-y-3 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center gap-2">
         <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: facadeColor(facade) }} />
         <span className="text-xs font-medium uppercase tracking-wide text-faint">
