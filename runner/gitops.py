@@ -6,6 +6,7 @@ travail (la livraison/merge passe par une décision d'approbation, doc 06/§gate
 
 from __future__ import annotations
 
+import base64
 import os
 import subprocess
 from pathlib import Path
@@ -26,18 +27,29 @@ def _git_env() -> dict[str, str]:
     return {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "echo"}
 
 
+def _basic_header(token: str) -> str:
+    """En-tête Basic auth GitHub : base64('x-access-token:<token>'). Le format `bearer`
+    n'est PAS accepté par git-over-HTTPS pour les PAT fine-grained (échec d'auth, vérifié
+    empiriquement) ; Basic l'est. L'API (deliver) garde `Bearer` (correct côté API)."""
+    return "Basic " + base64.b64encode(f"x-access-token:{token}".encode()).decode()
+
+
 def _auth_args() -> list[str]:
     """Injecte l'auth GitHub via un en-tête éphémère (pas dans l'URL/les logs).
     Backend only : GITHUB_TOKEN vit dans /srv/kua/.env."""
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
         return []
-    return ["-c", f"http.https://github.com/.extraheader=AUTHORIZATION: bearer {token}"]
+    return ["-c", f"http.https://github.com/.extraheader=Authorization: {_basic_header(token)}"]
 
 
 def _mask(text: str) -> str:
     token = os.environ.get("GITHUB_TOKEN")
-    return text.replace(token, "***") if token else text
+    if not token:
+        return text
+    # Masque le token brut ET sa forme base64 (en-tête Basic) au cas où il apparaîtrait.
+    masked = text.replace(token, "***")
+    return masked.replace(_basic_header(token).split(" ", 1)[1], "***")
 
 
 def _run(args: list[str], cwd: Optional[Path | str] = None, timeout: int = 300) -> str:
