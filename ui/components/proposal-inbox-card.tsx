@@ -11,7 +11,7 @@ import { applyProposal } from "@/lib/apply-proposal";
 import { getProjects, setProposalStatus } from "@/lib/queries";
 import { currentIdentity } from "@/lib/auth";
 import { facadeLabel } from "@/lib/facade";
-import { plainText } from "@/lib/markdown-parse";
+import { inboxDetailModel } from "@/lib/inbox-state";
 import { timeAgo } from "@/lib/utils";
 import type { Project, Proposal } from "@/lib/types";
 
@@ -26,10 +26,8 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
     void getProjects().then(setProjects).catch(() => {});
   }, []);
 
-  const needsProject = p.action === "create_thread" || p.action === "create_loop";
+  const { canQuickConfirm, preview } = inboxDetailModel(proposal);
   const projectName = projects.find((x) => x.id === proposal.project_id)?.name ?? null;
-  // Aperçu en clair (jamais de markdown brut) : résumé humain, sinon début du goal.
-  const preview = plainText(p.resume_humain || p.goal || "");
 
   async function done(cp: ConfirmedProposal) {
     setBusy(true);
@@ -60,7 +58,7 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
 
   function approveQuick() {
     // Sans projet résolu → ouvre le détail pour en choisir un (via Ajuster).
-    if (needsProject && !proposal.project_id) {
+    if (!canQuickConfirm) {
       setOpen(true);
       return;
     }

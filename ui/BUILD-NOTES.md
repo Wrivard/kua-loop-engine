@@ -470,3 +470,38 @@ aucun run live dans pytest (164 verts). **Preuves réelles (≤ 0,50 $, pas de m
 - **Bot Discord live** (`docs/17-discord.md`) ; **activation `auto`** façade par façade (reste FALSE) ;
   swap des SVG logos connecteurs ; cron : configurer `schedule_cron` par loop (panneau config ou chat).
 - Le `/internal/pr` renvoie 500 sur un run_id non-uuid (cosmétique ; les vrais ids sont des uuid).
+
+## REFONTE DE LA COUCHE DE PRÉSENTATION (loop design, 2026-06-11) — A→F
+
+Audit → plan → implémentation, présentation SEULEMENT (zéro logique métier/endpoint/DB/Runner/auth
+touchés). Commit + push par milestone. Audit complet : `ui/DESIGN-AUDIT.md`.
+
+**Décisions** : renderer markdown maison léger (zéro dep lourde, **zéro `dangerouslySetInnerHTML`**,
+href assaini → impossible d'injecter du HTML) plutôt que react-markdown ; parseur de vérif PUR séparé
+du rendu (`lib/*-parse.ts`, `lib/verify-report.ts`, `lib/inbox-state.ts`) → testable sans DOM ni alias ;
+`vitest` ajouté (seule dep dev, justifiée par le milestone F) en mode node (pas de jsdom/RTL).
+
+**Avant → Après par vue**
+- **Chat (accueil + thread)** : `##`/`**`/backticks bruts → markdown rendu ; bulle user accentuée →
+  `bg-secondary` ; system → ligne d'événement fine ; bulle « … » → « le cerveau réfléchit… » animé ;
+  murs de texte repliés (`<Expandable>` voir plus).
+- **Carte de run (livrable)** : résumé brut → markdown ; vérif invisible/à-ouvrir → `VerdictCard` inline ;
+  liens PR/branche/coût noyés → chips `PrLink`/`BranchChip`/`CostBadge`.
+- **Revue de PR** : dump `verify_output` (mur) → `VerdictCard` (ouvert si échec) ; résumé → markdown ;
+  coût → `CostBadge`. Diff conservé.
+- **Inbox** : on confirmait à l'aveugle (titre + résumé) → carte propre (façade, `SourceChip` icône+couleur,
+  projet, âge, coût ; aperçu en clair sans markdown) + **`InboxDetail`** (drawer plein écran mobile :
+  pourquoi / ce qui sera fait / où / coût / questions) ; Confirmer (vert) · Ajuster · Rejeter, détail à 1 tap.
+- **Notifications** : body brut → `plainText`. **Dashboard** : lien PR → `PrLink`. **Drawer détails** :
+  résumé → markdown, PR/branche en chips.
+
+**Mocké vs réel** : aucune logique/endpoint touché ; tests = LOGIQUE PURE (pas de réseau, pas de DOM).
+`vitest` 27 tests verts — `markdown-parse` (href `javascript:`/`data:` rejetés, `<script>` rendu en
+TEXTE, parsing titres/listes/liens), `verify-report` (PASS/SKIP/FAIL structuré + markdown agent +
+prose→fallback + null/vide), `inbox-state` (needsProject/canQuickConfirm/showGoal/preview, états liste).
+`pytest` 164 + `npm run build` + `lint` verts.
+
+**Reste à faire (P2, dans DESIGN-AUDIT)** : coloration syntaxique du contenu de diff ; refonte fine des
+5 onglets Réglages ; barre dépensé/budget au dashboard ; tests de composants React (RTL+jsdom). Note ops
+inchangée : après tout déploiement gateway, `sudo systemctl restart kua-gateway` (la refonte est UI-only,
+donc côté Vercel : redéployer l'UI suffit).

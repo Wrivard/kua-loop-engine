@@ -37,15 +37,16 @@ function verdictFromStatus(status: string): Verdict | null {
   return null;
 }
 
-/** `**Label:** value` ou `Label: value` (1re occurrence, insensible à la casse). */
+/** `**Label:** value`, `Label: value`, `__Label__: value`… (1re occurrence, insensible à la casse).
+ *  Les marques de gras peuvent entourer le label OU le label+deux-points. */
 function labelValue(text: string, label: string): string | null {
-  const re = new RegExp(`(?:^|\\n)\\s*\\*{0,2}${label}\\*{0,2}\\s*:\\s*(.+)`, "i");
+  const re = new RegExp(`(?:^|\\n)\\s*\\*{0,2}\\s*${label}\\s*:?\\s*\\*{0,2}\\s*:?\\s*(.+)`, "i");
   const m = text.match(re);
-  return m ? m[1].trim().replace(/\*+$/, "").trim() || null : null;
+  return m ? m[1].trim().replace(/^[*:\s]+|\*+$/g, "").trim() || null : null;
 }
 
 function verdictFromText(text: string): Verdict | null {
-  const explicit = labelValue(text, "verdict") ?? labelValue(text, "verd:?dict") ?? labelValue(text, "result");
+  const explicit = labelValue(text, "verdict") ?? labelValue(text, "result");
   if (explicit) {
     const v = verdictFromStatus(explicit);
     if (v) return v;
@@ -142,14 +143,17 @@ export function parseVerifyReport(input: VerifyInput): VerifyReport {
   if (!text.trim()) return EMPTY(text);
 
   const verdict = verdictFromText(text);
-  const claim = labelValue(text, "claim") ?? labelValue(text, "what") ?? firstHeadingOrLine(text);
+  const claimLabel = labelValue(text, "claim") ?? labelValue(text, "what");
   const method = labelValue(text, "method") ?? labelValue(text, "how") ?? labelValue(text, "command");
-  const steps = stepsFromText(text);
   const findings = labelValue(text, "findings") ?? labelValue(text, "notes") ?? null;
+  const steps = stepsFromText(text);
 
-  // Rien de reconnu → fallback markdown brut.
-  if (!verdict && !claim && steps.length === 0) return EMPTY(text);
+  // Reconnu seulement si un verdict, un label explicite ou des étapes sont présents.
+  // Sinon (prose libre) → fallback : le VerdictCard rend le texte en markdown.
+  const recognized = verdict !== null || !!claimLabel || !!method || !!findings || steps.length > 0;
+  if (!recognized) return EMPTY(text);
 
+  const claim = claimLabel ?? firstHeadingOrLine(text);
   return { verdict, claim, method, steps, findings, raw: text };
 }
 

@@ -16,18 +16,9 @@ import { FacadeDot } from "@/components/facade-mark";
 import { SourceChip, CostBadge } from "@/components/ui/chips";
 import { Markdown } from "@/lib/markdown";
 import { facadeLabel } from "@/lib/facade";
+import { inboxDetailModel } from "@/lib/inbox-state";
 import { cn, timeAgo } from "@/lib/utils";
 import type { Project, Proposal } from "@/lib/types";
-
-const ACTION_LABEL: Record<string, string> = {
-  create_thread: "Lancer un thread",
-  create_loop: "Créer un loop",
-  update_loop: "Modifier le loop",
-  pause_loop: "Mettre en pause",
-  resume_loop: "Reprendre",
-  import_repo: "Importer un repo",
-  none: "Rien à faire",
-};
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -66,8 +57,7 @@ export function InboxDetail({
   const p = proposal.payload;
   const [edit, setEdit] = useState(false);
   const projectName = projects.find((x) => x.id === proposal.project_id)?.name ?? proposal.project_id ?? null;
-  const needsProject = p.action === "create_thread" || p.action === "create_loop";
-  const showGoal = p.action !== "pause_loop" && p.action !== "resume_loop" && p.action !== "import_repo";
+  const { actionLabel, needsProject, showGoal } = inboxDetailModel(proposal);
 
   return (
     <Dialog
@@ -87,9 +77,7 @@ export function InboxDetail({
             <span className="ml-auto shrink-0">{timeAgo(proposal.created_at)}</span>
           </div>
           <DialogTitle className="text-base leading-snug">{p.title}</DialogTitle>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-brand">
-            {ACTION_LABEL[p.action] ?? p.action}
-          </p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-brand">{actionLabel}</p>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
