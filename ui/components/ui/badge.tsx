@@ -10,7 +10,8 @@ const Badge = React.forwardRef<
   <span
     ref={ref}
     className={cn(
-      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+      // transition-colors : la mutation d'état (carte de run) glisse au lieu de sauter.
+      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-150",
       className,
     )}
     {...props}

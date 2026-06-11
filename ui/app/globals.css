@@ -20,7 +20,7 @@
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 95%;
     --muted-foreground: 0 0% 38%;
-    --faint: 0 0% 52%;
+    --faint: 0 0% 42%; /* tertiaire — AA (≥4.5:1) sur blanc */
     --accent: 0 0% 0% / 0.05;
     --accent-foreground: 0 0% 9%;
     --border: 0 0% 0% / 0.09;
@@ -52,7 +52,7 @@
     --secondary-foreground: 0 0% 95%;
     --muted: 0 0% 12%; /* fonds code / skeleton */
     --muted-foreground: 0 0% 64%;
-    --faint: 0 0% 45%;
+    --faint: 0 0% 48%; /* tertiaire — AA (≥4.5:1) sur les 3 couches */
     --accent: 0 0% 100% / 0.06; /* couche de survol */
     --accent-foreground: 0 0% 95%;
     --border: 0 0% 100% / 0.08;
@@ -79,6 +79,15 @@
   /* Sélection de texte : brand discret. */
   ::selection {
     background: hsl(var(--brand) / 0.25);
+  }
+
+  /* Focus clavier COMPLET : tout focusable a un anneau brand, même les éléments
+     custom (chips, sélecteurs de version, liens de nav). Les primitives qui posent
+     leur propre ring (Button, Input…) le recouvrent. */
+  :where(a, button, [role="switch"], [role="button"], summary):focus-visible {
+    outline: 2px solid hsl(var(--brand));
+    outline-offset: 2px;
+    border-radius: 6px;
   }
 
   /* Mobile : 16px sur les champs évite le zoom auto de Safari iOS au focus

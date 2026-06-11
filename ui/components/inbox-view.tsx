@@ -64,9 +64,10 @@ export function InboxView() {
       {error && !data ? (
         <ErrorState message={error} onRetry={() => void refetch()} />
       ) : loading && !data ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
+          {/* Même hauteur que les cartes réelles → zéro layout shift au chargement. */}
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className="h-36 w-full rounded-lg" />
           ))}
         </div>
       ) : groups.length === 0 && pendingProps.length === 0 ? (
