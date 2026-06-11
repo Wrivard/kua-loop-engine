@@ -23,7 +23,7 @@ import type { Project, Proposal } from "@/lib/types";
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-faint">{title}</p>
       {children}
     </div>
   );

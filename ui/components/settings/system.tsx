@@ -56,11 +56,11 @@ function PauseControl() {
         />
       </div>
       {paused && (
-        <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+        <p className="rounded-md bg-warn-soft px-3 py-2 text-xs text-warn">
           ⏸ Moteur en pause — les nouveaux runs attendent la reprise.
         </p>
       )}
-      {err && <p className="text-xs text-red-500">{err}</p>}
+      {err && <p className="text-xs text-danger">{err}</p>}
     </section>
   );
 }

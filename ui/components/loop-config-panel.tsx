@@ -87,7 +87,7 @@ export function LoopConfigPanel({ loop, trigger }: { loop: Loop; trigger: ReactN
                 <Lock className="h-3 w-3" /> Auto
               </span>
             </div>
-            <p className="text-[11px] text-amber-500">
+            <p className="text-xs text-warn">
               Le mode auto n'est pas encore activable (allow_auto verrouillé à false — activation façade par façade plus tard).
             </p>
           </div>
@@ -148,12 +148,12 @@ export function LoopConfigPanel({ loop, trigger }: { loop: Loop; trigger: ReactN
                   aria-label="Expression cron"
                   className="font-mono text-xs"
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Le cron <strong>PROPOSE</strong> dans l'inbox à l'heure dite (jamais un run direct) — tu approuves.
                 </p>
               </div>
             ) : (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 discord / sentry : UI seulement pour l'instant (webhooks réels = fondation prête).
               </p>
             )}

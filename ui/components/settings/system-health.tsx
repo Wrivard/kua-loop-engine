@@ -10,7 +10,7 @@ function Dot({ up }: { up?: boolean }) {
     <span
       className={cn(
         "inline-block h-2 w-2 rounded-full",
-        up === undefined ? "bg-muted-foreground/40" : up ? "bg-emerald-500" : "bg-red-500",
+        up === undefined ? "bg-muted-foreground/40" : up ? "bg-success" : "bg-danger",
       )}
     />
   );
@@ -117,19 +117,19 @@ export function SystemHealth() {
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Services</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-faint">Services</h3>
         <Button variant="ghost" size="sm" onClick={() => void load()} disabled={loading}>
           Rafraîchir
         </Button>
       </div>
       {restarting && (
-        <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+        <p className="rounded-md bg-warn-soft px-3 py-2 text-xs text-warn">
           ⏳ Redémarrage… on revérifie la santé automatiquement.
         </p>
       )}
       {!health?.reachable ? (
         <div className="rounded-lg border border-border bg-accent/30 p-3 text-xs text-muted-foreground">
-          <p className="font-medium text-amber-500">Gateway non joignable</p>
+          <p className="font-medium text-warn">Gateway non joignable</p>
           <p className="mt-1">{health?.reason ?? "…"}</p>
           <p className="mt-1">Normal tant que l&apos;engine n&apos;est pas exposé (runbook bring-live).</p>
         </div>
@@ -148,7 +148,7 @@ export function SystemHealth() {
                     <Dot up={s?.up} />
                     {row.label}
                     {row.healthKey === "worker" && s?.up && s.age_seconds != null && (
-                      <span className="font-mono text-[10px] text-muted-foreground">♥ {Math.round(s.age_seconds)}s</span>
+                      <span className="font-mono text-xs text-muted-foreground">♥ {Math.round(s.age_seconds)}s</span>
                     )}
                   </span>
                   {row.service && (

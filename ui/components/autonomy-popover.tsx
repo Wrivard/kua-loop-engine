@@ -82,7 +82,7 @@ export function AutonomyPopover({ loop, allowAuto = true }: { loop: Loop; allowA
       <PopoverTrigger
         aria-label={`Autonomie : ${OPTIONS.find((o) => o.key === current)?.label}`}
         className={cn(
-          "inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-accent",
+          "inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium transition-colors hover:bg-accent",
           PILL_TONE[current],
         )}
       >
@@ -126,7 +126,7 @@ export function AutonomyPopover({ loop, allowAuto = true }: { loop: Loop; allowA
           })}
         </div>
         {budget && (
-          <p className="border-t border-border px-2 pt-2 mt-1 text-[11px] text-muted-foreground">
+          <p className="border-t border-border px-2 pt-2 mt-1 text-xs text-muted-foreground">
             Budget mensuel · {budget}
           </p>
         )}

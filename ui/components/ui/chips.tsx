@@ -12,9 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { statusOf } from "@/lib/facade";
 import { cn, formatCost } from "@/lib/utils";
 
-/** Petits composants partagés : PR, coût, branche, statut, source.
- *  Couleurs sémantiques cohérentes (emerald=ok, red=échec, amber=attente,
- *  blue=en cours, muted=neutre) — alignées sur lib/facade.ts. */
+/** Petits composants partagés : PR, coût, branche, statut, source. Baseline h-6
+ *  unifiée ; rect (rounded-sm) = méta technique, pill (rounded-full) = état/source.
+ *  Tokens sémantiques success/warn/danger/info (DESIGN-SYSTEM §2) — alignés sur lib/facade.ts. */
 
 function httpHref(value: string | null | undefined): string | undefined {
   if (!value) return undefined;
@@ -124,7 +124,7 @@ const SOURCE: Record<string, { label: string; icon: LucideIcon; color: string }>
   chat: { label: "Chat", icon: MessageSquare, color: "text-foreground" },
   ui: { label: "Chat", icon: MessageSquare, color: "text-foreground" },
   discord: { label: "Discord", icon: MessageSquare, color: "text-[#5865F2]" },
-  cron: { label: "Cron", icon: Clock, color: "text-sky-500" },
+  cron: { label: "Cron", icon: Clock, color: "text-info" },
   sentry: { label: "Sentry", icon: AlertTriangle, color: "text-[#e1567c]" },
   webhook: { label: "Webhook", icon: Webhook, color: "text-violet-400" },
 };

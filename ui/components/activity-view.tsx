@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { PauseCircle, PlayCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/empty-state";
@@ -50,11 +51,14 @@ function PauseControl() {
     <div
       className={cn(
         "flex items-center justify-between gap-3 rounded-lg border p-3",
-        paused ? "border-amber-500/30 bg-amber-500/5" : "border-border",
+        paused ? "border-warn/30 bg-warn-soft" : "border-border",
       )}
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium">{paused ? "⏸ Moteur en pause" : "Moteur actif"}</p>
+        <p className={cn("flex items-center gap-1.5 text-sm font-medium", paused && "text-warn")}>
+          {paused ? <PauseCircle className="h-4 w-4" strokeWidth={1.75} /> : <PlayCircle className="h-4 w-4 text-success" strokeWidth={1.75} />}
+          {paused ? "Moteur en pause" : "Moteur actif"}
+        </p>
         <p className="text-xs text-muted-foreground">
           En pause : aucun nouveau run ne démarre (les runs en cours finissent). Sûr, marche sans la gateway.
         </p>
@@ -72,8 +76,9 @@ function PauseControl() {
 function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="min-w-0 rounded-lg border border-border p-2.5 sm:p-3">
-      <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn("mt-0.5 truncate text-lg font-semibold tabular-nums", tone)}>{value}</p>
+      <p className="truncate text-xs uppercase tracking-wide text-faint">{label}</p>
+      {/* Les chiffres sont les héros : gros, tabulaires ; étiquette discrète. */}
+      <p className={cn("mt-0.5 truncate text-xl font-semibold tabular-nums", tone)}>{value}</p>
     </div>
   );
 }
@@ -122,12 +127,12 @@ export function ActivityView() {
 
           <div className="grid grid-cols-3 gap-3">
             <Stat label="Coût du mois" value={formatCost(data?.total) || "0 $"} />
-            <Stat label="En cours" value={String(runningN)} tone={runningN ? "text-blue-500" : undefined} />
-            <Stat label="Échoués" value={String(failedN)} tone={failedN ? "text-red-500" : undefined} />
+            <Stat label="En cours" value={String(runningN)} tone={runningN ? "text-info" : undefined} />
+            <Stat label="Échoués" value={String(failedN)} tone={failedN ? "text-danger" : undefined} />
           </div>
 
           <section>
-            <h2 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Par projet</h2>
+            <h2 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-faint">Par projet</h2>
             {loading && !data ? (
               <div className="space-y-2">
                 {[0, 1].map((i) => (
@@ -155,7 +160,7 @@ export function ActivityView() {
           </section>
 
           <section>
-            <h2 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Runs récents</h2>
+            <h2 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-faint">Runs récents</h2>
             {loading && !data ? (
               <Skeleton className="h-24 w-full" />
             ) : (data?.runs ?? []).length === 0 ? (

@@ -1,7 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2,
+  CircleDollarSign,
+  Clock,
+  Lightbulb,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { useLiveQuery } from "@/lib/use-live-query";
@@ -11,12 +19,13 @@ import { timeAgo } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
 
-const EMOJI: Record<string, string> = {
-  proposal: "💡",
-  awaiting: "⏳",
-  failed: "❌",
-  merged: "✅",
-  budget: "💸",
+// Icônes fines par type (tons sémantiques sourds — fini les emoji).
+const KIND_ICON: Record<string, { icon: LucideIcon; tone: string }> = {
+  proposal: { icon: Lightbulb, tone: "text-info" },
+  awaiting: { icon: Clock, tone: "text-warn" },
+  failed: { icon: XCircle, tone: "text-danger" },
+  merged: { icon: CheckCircle2, tone: "text-success" },
+  budget: { icon: CircleDollarSign, tone: "text-warn" },
 };
 
 export function NotificationBell() {
@@ -37,9 +46,9 @@ export function NotificationBell() {
           aria-label="Notifications"
           className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          <Bell className="h-4 w-4" />
+          <Bell className="h-4 w-4" strokeWidth={1.75} />
           {unread > 0 && (
-            <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold text-brand-foreground">
+            <span className="absolute right-0.5 top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-semibold tabular-nums text-brand-foreground">
               {unread > 9 ? "9+" : unread}
             </span>
           )}
@@ -67,11 +76,15 @@ export function NotificationBell() {
                   !n.read && "bg-brand/5",
                 )}
               >
-                <span className="shrink-0">{EMOJI[n.kind] ?? "🔔"}</span>
+                {(() => {
+                  const k = KIND_ICON[n.kind] ?? { icon: Bell, tone: "text-faint" };
+                  const Icon = k.icon;
+                  return <Icon className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", k.tone)} strokeWidth={1.75} />;
+                })()}
                 <span className="min-w-0 flex-1">
                   <span className={cn("block truncate", !n.read && "font-medium")}>{n.title}</span>
                   {n.body && <span className="block truncate text-muted-foreground">{plainText(n.body)}</span>}
-                  <span className="text-[10px] text-muted-foreground">{timeAgo(n.created_at)}</span>
+                  <span className="text-xs text-muted-foreground">{timeAgo(n.created_at)}</span>
                 </span>
                 {!n.read && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />}
               </button>

@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 
 // Statut connecteur = canal SÉMANTIQUE (à point) : connecté=vert / erreur=rouge / non testé=neutre.
 const STATUS: Record<string, { dot: string; label: string }> = {
-  ok: { dot: "bg-emerald-500", label: "connecté" },
-  error: { dot: "bg-red-500", label: "erreur" },
+  ok: { dot: "bg-success", label: "connecté" },
+  error: { dot: "bg-danger", label: "erreur" },
   untested: { dot: "bg-muted-foreground/40", label: "non testé" },
 };
 
@@ -22,7 +22,7 @@ export function ConnStatus({ status }: { status?: string | null }) {
 // Portée = miroir global/projet, 2 teintes distinctes (hors couleurs de façade/statut).
 export function ScopeBadge({ shareable }: { shareable: boolean }) {
   return shareable ? (
-    <Badge className="bg-sky-500/10 text-sky-500">partageable</Badge>
+    <Badge className="bg-info-soft text-info">partageable</Badge>
   ) : (
     <Badge className="bg-rose-500/10 text-rose-500">par projet</Badge>
   );

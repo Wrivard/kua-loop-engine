@@ -106,7 +106,7 @@ export function SystemDebug() {
   return (
     <section className="space-y-2">
       <div>
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assistant de débogage</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-faint">Assistant de débogage</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Alimenté par Claude (plan Max). Lit les diagnostics et propose UNE action sûre et réversible —
           que tu confirmes.
@@ -123,10 +123,10 @@ export function SystemDebug() {
             key={i}
             className={cn(
               "text-sm",
-              m.role === "user" ? "text-foreground" : m.role === "system" ? "text-amber-500" : "text-muted-foreground",
+              m.role === "user" ? "text-foreground" : m.role === "system" ? "text-warn" : "text-muted-foreground",
             )}
           >
-            <span className="mr-1.5 font-mono text-[10px] uppercase opacity-60">
+            <span className="mr-1.5 font-mono text-xs uppercase opacity-60">
               {m.role === "user" ? "toi" : m.role === "assistant" ? "claude" : "sys"}
             </span>
             <span className="whitespace-pre-wrap break-words">{m.text}</span>

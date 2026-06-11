@@ -38,7 +38,7 @@ export function SystemLogs() {
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Logs (journalctl)</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-faint">Logs (journalctl)</h3>
         <Button variant="ghost" size="sm" onClick={() => void load(service)} disabled={loading}>
           Rafraîchir
         </Button>
@@ -61,7 +61,7 @@ export function SystemLogs() {
       {err ? (
         <p className="rounded-md bg-accent/30 px-3 py-2 text-xs text-muted-foreground">{err}</p>
       ) : (
-        <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/30 p-3 font-mono text-[11px] leading-relaxed">
+        <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/30 p-3 font-mono text-xs leading-relaxed">
           {loading ? "…" : output || "(vide)"}
         </pre>
       )}

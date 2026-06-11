@@ -108,7 +108,7 @@ export function ProjectSettingsDrawer({
         <div className="space-y-6 p-4">
           {/* Connecteurs */}
           <section className="space-y-2">
-            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connecteurs</h3>
+            <h3 className="text-xs font-medium uppercase tracking-wide text-faint">Connecteurs</h3>
             {CONNECTOR_TYPES.map((t) => {
               const binding = connByType.get(t.type);
               const enabled = !!binding?.enabled;
@@ -134,7 +134,7 @@ export function ProjectSettingsDrawer({
                     </p>
                   )}
                   {enabled && !t.shareable && (
-                    <p className="mt-1.5 overflow-x-auto whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                    <p className="mt-1.5 overflow-x-auto whitespace-nowrap font-mono text-xs text-muted-foreground">
                       connexion propre — secret via : kua connector set --scope project --project {projectId} --type{" "}
                       {t.type} {t.fields.map((f) => `--${f.name} …`).join(" ")}
                     </p>
@@ -146,7 +146,7 @@ export function ProjectSettingsDrawer({
 
           {/* Skills */}
           <section className="space-y-2">
-            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Skills</h3>
+            <h3 className="text-xs font-medium uppercase tracking-wide text-faint">Skills</h3>
             <div className="divide-y divide-border rounded-lg border border-border">
               {SKILLS.map((s) => (
                 <div key={s.key} className="flex items-center justify-between gap-3 px-3 py-2">
@@ -164,7 +164,7 @@ export function ProjectSettingsDrawer({
           {/* MCP */}
           <section className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Serveurs MCP</h3>
+              <h3 className="text-xs font-medium uppercase tracking-wide text-faint">Serveurs MCP</h3>
               <McpWizard
                 scope="project"
                 projectId={projectId}
@@ -203,7 +203,7 @@ export function ProjectSettingsDrawer({
                 Ajouter
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Token MCP (si requis) via la CLI — jamais saisi ici.
             </p>
           </section>

@@ -235,7 +235,7 @@ export function ComposerDock() {
                 {s.kind === "facade" ? (
                   <FacadeDot facade={s.value} />
                 ) : (
-                  <span className="text-[11px] font-medium uppercase text-muted-foreground">projet</span>
+                  <span className="text-xs font-medium uppercase text-muted-foreground">projet</span>
                 )}
                 <span className="font-medium">{s.label}</span>
                 {s.kind === "facade" && <span className="text-xs text-muted-foreground">façade</span>}

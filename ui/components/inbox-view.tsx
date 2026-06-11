@@ -46,7 +46,7 @@ export function InboxView() {
 
       {pendingProps.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-faint">
             Propositions
           </h2>
           <div className="space-y-2">

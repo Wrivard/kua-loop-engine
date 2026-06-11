@@ -23,7 +23,7 @@ function num(v: number | string | null): number {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border p-3">
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs uppercase tracking-wide text-faint">{label}</p>
       <p className="mt-0.5 text-lg font-semibold tabular-nums">{value}</p>
     </div>
   );
@@ -81,7 +81,7 @@ export function CostDashboard({
               </div>
 
               <div>
-                <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-faint">
                   Runs par statut
                 </h3>
                 <div className="flex flex-wrap gap-1.5">
@@ -98,7 +98,7 @@ export function CostDashboard({
               </div>
 
               <div>
-                <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-faint">
                   Historique récent
                 </h3>
                 <div className="divide-y divide-border rounded-lg border border-border">
@@ -110,7 +110,7 @@ export function CostDashboard({
                       />
                       <span className="min-w-0 flex-1 truncate">{r.subject || facadeLabel(r.facade)}</span>
                       <span className="shrink-0 tabular-nums text-muted-foreground">{formatCost(num(r.cost_usd))}</span>
-                      <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[10px]", statusOf(r.status).classes)}>
+                      <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-xs", statusOf(r.status).classes)}>
                         {statusOf(r.status).label}
                       </span>
                       {r.pr_url && <PrLink url={r.pr_url} className="shrink-0 border-0 px-0" />}

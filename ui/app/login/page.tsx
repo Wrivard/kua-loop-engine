@@ -83,7 +83,7 @@ function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            {error && <p className="text-xs text-danger">{error}</p>}
             <Button type="submit" className="w-full" disabled={pending}>
               {pending ? "Connexion…" : "Se connecter"}
             </Button>

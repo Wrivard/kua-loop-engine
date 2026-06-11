@@ -34,7 +34,7 @@ export type ConfirmedProposal = AgentProposal & { project_id?: string };
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-faint">{label}</span>
       {children}
     </label>
   );
@@ -98,7 +98,7 @@ export function ProposalCard({
     <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center gap-2">
         <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: facadeColor(facade) }} />
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="text-xs font-medium uppercase tracking-wide text-faint">
           {ACTION_LABEL[proposal.action] ?? proposal.action}
         </span>
         {proposal.priority === "high" && (

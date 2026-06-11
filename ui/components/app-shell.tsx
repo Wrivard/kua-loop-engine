@@ -27,7 +27,7 @@ import type { Proposal, SidebarProject } from "@/lib/types";
 function CountBadge({ n }: { n: number }) {
   if (n <= 0) return null;
   return (
-    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[11px] font-medium tabular-nums text-background">
+    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-xs font-medium tabular-nums text-background">
       {n}
     </span>
   );
@@ -108,7 +108,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         </Link>
 
         <div className="flex items-center justify-between px-2.5 pb-1 pt-5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-medium uppercase tracking-wide text-faint">
             Projets
           </p>
           <NewProjectDialog
@@ -195,7 +195,7 @@ function MobileTabBar({ onProjects }: { onProjects: () => void }) {
   // py-2.5 → cible tap ≥ 44px (icône 20 + label 10 + paddings).
   const itemCls = (active: boolean) =>
     cn(
-      "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
+      "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors",
       active ? "text-brand" : "text-muted-foreground hover:text-foreground",
     );
 
@@ -205,7 +205,7 @@ function MobileTabBar({ onProjects }: { onProjects: () => void }) {
         <span className="relative">
           <Inbox className="h-5 w-5" />
           {awaiting > 0 && (
-            <span className="absolute -right-2 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold tabular-nums text-brand-foreground">
+            <span className="absolute -right-2 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-semibold tabular-nums text-brand-foreground">
               {awaiting > 9 ? "9+" : awaiting}
             </span>
           )}

@@ -52,7 +52,7 @@ export function ConnectorsSettings() {
                 </div>
                 <ConnStatus status={c?.status} />
               </div>
-              <p className="mt-2 overflow-x-auto whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+              <p className="mt-2 overflow-x-auto whitespace-nowrap font-mono text-xs text-muted-foreground">
                 kua connector set --scope app --type {t.type}{" "}
                 {t.fields.map((f) => `--${f.name} …`).join(" ")}
               </p>

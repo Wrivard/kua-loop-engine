@@ -166,7 +166,7 @@ export function NewProjectDialog({
               aria-label="Nom du projet"
             />
             {name.trim() && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 slug : <code className="font-mono">{slugify(name)}</code>
               </p>
             )}
@@ -184,7 +184,7 @@ export function NewProjectDialog({
               />
             </div>
           ) : (
-            <p className="rounded-lg border border-border bg-accent/30 p-2.5 text-[11px] text-muted-foreground">
+            <p className="rounded-lg border border-border bg-accent/30 p-2.5 text-xs text-muted-foreground">
               Crée un repo <strong>privé</strong> sur GitHub (README, branche main) via l&apos;engine, puis
               l&apos;enregistre comme projet chargé avec une loop <code className="font-mono">general</code>{" "}
               (approve_final). Le token GitHub reste sur le VPS — jamais dans le navigateur.
@@ -208,7 +208,7 @@ export function NewProjectDialog({
               ))}
             </div>
           )}
-          {notice && <p className="whitespace-pre-line font-mono text-[11px] text-amber-500">{notice}</p>}
+          {notice && <p className="whitespace-pre-line font-mono text-xs text-warn">{notice}</p>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
               Annuler

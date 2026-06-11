@@ -49,7 +49,7 @@ export function ApprovalActions({
       <p
         className={cn(
           "inline-flex items-center gap-1.5 text-xs font-medium",
-          done === "approved" ? "text-emerald-500" : "text-muted-foreground",
+          done === "approved" ? "text-success" : "text-muted-foreground",
           className,
         )}
       >
@@ -88,7 +88,7 @@ export function ApprovalActions({
         <RotateCcw className="h-4 w-4" />
         {pending === "redo" ? "…" : "Refaire"}
       </Button>
-      {error && <span className="text-xs text-red-500">Échec — réessayer</span>}
+      {error && <span className="text-xs text-danger">Échec — réessayer</span>}
     </div>
   );
 }
