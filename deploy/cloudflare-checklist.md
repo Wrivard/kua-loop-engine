@@ -58,3 +58,20 @@ token → **JSON health**. Puis dans l'app : Réglages → Système passe au ver
 > ⚠️ Après avoir mis le nouveau code (endpoints `/internal/agent/*`), **redémarre la gateway** pour
 > qu'elle charge le cerveau : `sudo systemctl restart kua-gateway` (sinon `/internal/agent/propose`
 > répond 404, comme constaté pendant la preuve M7).
+
+## 7. Webhook Sentry (M18) — après l'exposition Cloudflare
+- URL à mettre dans Sentry (Settings → Alerts/Integrations → Webhooks) :
+  `https://engine.oryon-temple.ca/webhooks/sentry`
+- Secret PAR SOURCE : ajoute `WEBHOOK_SECRET_SENTRY=<aléatoire long>` dans `/srv/kua/.env`. Le webhook
+  exige soit l'en-tête `X-Webhook-Secret: <valeur>`, soit `?token=<valeur>` (si Sentry n'envoie pas
+  d'en-tête custom). Secret absent → l'endpoint répond « non configuré » proprement.
+- ⚠️ Access protège TOUT le hostname → Sentry (sans login ni service token) serait BLOQUÉ. Deux options :
+  - **(DÉFAUT recommandé) Service Auth** : crée un 2e service token Cloudflare pour Sentry et configure
+    Sentry pour envoyer `CF-Access-Client-Id`/`CF-Access-Client-Secret`. (Selon que Sentry permet les
+    en-têtes custom.)
+  - **Bypass de path** : dans l'app Access « Kua Engine », policy **Bypass** sur `/webhooks/*`
+    (Include : Everyone). Sûr car le webhook reste protégé par SON propre `WEBHOOK_SECRET_*`. Plus simple
+    si Sentry ne peut pas envoyer les en-têtes CF.
+  → On part sur **Service Auth** ; bascule sur le **Bypass `/webhooks/*`** si Sentry ne peut pas.
+- Reste à faire : mapper projet Sentry → projet kua (pour l'instant la proposition arrive sans projet ;
+  tu le choisis dans l'inbox via « Modifier »).

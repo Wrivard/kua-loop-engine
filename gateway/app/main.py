@@ -438,6 +438,23 @@ async def internal_debug_act(request: Request, background: BackgroundTasks) -> J
 # Bearer INTERNAL_TOKEN. Le texte est une REQUÊTE à trier, jamais des instructions à exécuter.
 
 
+def _persist_proposal(source: str, project_id: Optional[str], proposal: dict[str, Any]) -> Optional[str]:
+    """Dépose une proposition ACTIONNABLE dans l'inbox + notif. Retourne l'id, ou None."""
+    if proposal["action"] not in ("create_thread", "create_loop") or proposal["questions_manquantes"]:
+        return None
+    try:
+        from kua_core import db as core_db  # noqa: PLC0415
+
+        pid = core_db.create_proposal(source, project_id, proposal)
+        core_db.create_notification(
+            "proposal", f"Proposition ({source}) — {proposal['facade']}", proposal.get("resume_humain"), "/inbox"
+        )
+        return pid
+    except Exception as exc:  # noqa: BLE001
+        log_json("proposal_persist_failed", source=source, error=str(exc))
+        return None
+
+
 @app.post("/internal/agent/propose")
 async def internal_agent_propose(request: Request) -> JSONResponse:
     if (err := _internal_guard(request)) is not None:
@@ -466,18 +483,7 @@ async def internal_agent_propose(request: Request) -> JSONResponse:
 
     # Inbox : les sources NON-interactives (discord|sentry|cron|webhook) déposent leurs propositions
     # ACTIONNABLES dans la table proposals. Le chat (source=ui) confirme inline → pas d'écriture.
-    proposal_id = None
-    actionable = proposal["action"] in ("create_thread", "create_loop") and not proposal["questions_manquantes"]
-    if source != "ui" and actionable:
-        try:
-            from kua_core import db as core_db  # noqa: PLC0415
-
-            proposal_id = core_db.create_proposal(source, project_id, proposal)
-            core_db.create_notification(
-                "proposal", f"Proposition ({source}) — {proposal['facade']}", proposal.get("resume_humain"), "/inbox"
-            )
-        except Exception as exc:  # noqa: BLE001
-            log_json("proposal_persist_failed", source=source, error=str(exc))
+    proposal_id = _persist_proposal(source, project_id, proposal) if source != "ui" else None
 
     log_json("agent_propose", user=user, source=source, action=proposal["action"], facade=proposal["facade"])
     return JSONResponse(content={"status": "ok", "proposal": proposal, "proposal_id": proposal_id})
@@ -578,6 +584,54 @@ async def internal_pr(run_id: str, request: Request) -> JSONResponse:
         log_json("pr_detail_failed", run_id=run_id, error=str(exc))
         return JSONResponse(status_code=502, content={"status": "pr_error", "error": str(exc), "run": run_info})
     return JSONResponse(content={"status": "ok", "run": run_info, **detail})
+
+
+# Webhook générique (M18) — POST /webhooks/{source}, secret PAR SOURCE (WEBHOOK_SECRET_*).
+# Payload → cerveau (source=sentry|webhook) → proposition dans l'inbox. PAS de run direct.
+def _webhook_secret(source: str) -> Optional[str]:
+    return os.environ.get(f"WEBHOOK_SECRET_{source.upper()}") or None
+
+
+def _webhook_message(source: str, payload: Any) -> str:
+    if source == "sentry":
+        f = extract_sentry_fields(payload)
+        parts = [f"Erreur Sentry ({f.get('level') or 'inconnu'}) : {f.get('title') or 'sans titre'}"]
+        if f.get("culprit"):
+            parts.append(f"Origine : {f['culprit']}")
+        if f.get("permalink"):
+            parts.append(f"Lien : {f['permalink']}")
+        return ". ".join(parts) + ". Corrige ce bug sur le projet client."
+    return f"Événement webhook ({source}) : " + json.dumps(payload, default=str)[:1500]
+
+
+@app.post("/webhooks/{source}")
+async def generic_webhook(source: str, request: Request) -> JSONResponse:
+    source = source.lower()
+    secret = _webhook_secret(source)
+    if not secret:
+        return JSONResponse(status_code=503, content={"status": "webhook_not_configured", "source": source})
+    provided = request.headers.get("x-webhook-secret", "") or request.query_params.get("token", "")
+    if not provided or not hmac.compare_digest(provided.encode(), secret.encode()):
+        return JSONResponse(status_code=401, content={"status": "unauthorized"})
+    raw = await request.body()
+    try:
+        payload = json.loads(raw) if raw else {}
+    except Exception:
+        payload = {}
+    message = _webhook_message(source, payload)
+
+    from app import agent_brain  # noqa: PLC0415
+
+    try:
+        proposal = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: agent_brain.propose(message, source=source)
+        )
+    except agent_brain.BrainError as exc:
+        log_json("webhook_brain_failed", source=source, error=str(exc))
+        return JSONResponse(status_code=502, content={"status": "brain_error"})
+    proposal_id = _persist_proposal(source, None, proposal)
+    log_json("webhook_received", source=source, action=proposal["action"], persisted=bool(proposal_id))
+    return JSONResponse(content={"status": "ok", "action": proposal["action"], "proposal_id": proposal_id})
 
 
 @app.post("/hooks/sentry/{project_id}")
