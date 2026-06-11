@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Inbox as InboxIcon } from "lucide-react";
-import { ThreadRow } from "@/components/thread-row";
+import { InboxAwaitingCard } from "@/components/inbox-awaiting-card";
 import { ProposalInboxCard } from "@/components/proposal-inbox-card";
 import { EmptyState, ErrorState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -81,19 +80,18 @@ export function InboxView() {
           {groups.map((g) => (
             <section key={g.project.id}>
               <div className="mb-2 flex items-center gap-2 px-1">
-                <Link
-                  href={`/p/${g.project.id}`}
-                  className="text-sm font-medium tracking-tight underline-offset-4 hover:underline"
-                >
-                  {g.project.name}
-                </Link>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {g.threads.length}
-                </span>
+                {/* Libellé (pas un lien) : on agit DANS l'inbox ; sortie via « Ouvrir la loop ». */}
+                <span className="text-sm font-medium tracking-tight">{g.project.name}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{g.threads.length}</span>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {g.threads.map((t) => (
-                  <ThreadRow key={t.id} thread={t} showInlineApproval onDecided={dismiss} />
+                  <InboxAwaitingCard
+                    key={t.id}
+                    thread={t}
+                    projectName={g.project.name}
+                    onResolved={() => dismiss(t.id)}
+                  />
                 ))}
               </div>
             </section>
