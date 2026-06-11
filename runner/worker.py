@@ -398,12 +398,20 @@ def run_worker(*, once: bool = False, poll_interval: float = 5.0, executor: Opti
 
     Pause : le claim est gardé côté SQL (aucun NOUVEAU run réclamé quand `paused`) ; les
     runs déjà en cours finissent, et approbations/messages d'agent continuent (achèvement)."""
-    if once:
-        try:
-            db.touch_worker_heartbeat(os.getpid())
-        except Exception:
-            logger.exception("kua: heartbeat worker a échoué")
-    else:
+    # Warm-up : importer psycopg (+ psycopg.rows) DANS le thread principal AVANT de lancer
+    # le thread heartbeat. Sinon les deux threads déclenchent le 1er import du module C
+    # psycopg simultanément → course → « ImportError: cannot import name Row » au 1er reap
+    # (bénin — un cycle raté — mais bruyant et alarmant dans les logs).
+    try:
+        import psycopg  # noqa: F401, PLC0415
+        from psycopg.rows import dict_row  # noqa: F401, PLC0415
+    except Exception:
+        logger.exception("kua: warm-up psycopg a échoué")
+    try:
+        db.touch_worker_heartbeat(os.getpid())
+    except Exception:
+        logger.exception("kua: heartbeat worker a échoué")
+    if not once:
         threading.Thread(
             target=_heartbeat_loop, args=(os.getpid(),), daemon=True, name="kua-heartbeat"
         ).start()
