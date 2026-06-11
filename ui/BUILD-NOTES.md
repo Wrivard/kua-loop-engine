@@ -435,3 +435,38 @@ Triage réel correct (3 requêtes types, anonymisées) :
 Aucune correction nécessaire. ⇒ Le chat-first est désormais **live-capable côté VPS** ; côté Vercel
 il reste l'exposition Cloudflare (checklist M9) — la dégradation « cerveau non joignable » disparaît dès
 que `GATEWAY_INTERNAL_URL` + service token sont câblés.
+
+## EXPÉRIENCE D'APPROBATION (loop nuit #2, 2026-06-11) — M12→M21
+
+**Livré par milestone** (commit+push chacun, pytest+build+lint verts) :
+- **M12** cerveau LIVE vérifié (restart gateway via sudoers, triage réel correct). **M13** revue de PR
+  dans l'app : endpoint `/internal/pr/{run_id}` (diff/patch/commits/coût via API GitHub) + `PrReview`
+  mobile (diff coloré repliable, vérif, coût, Approuver/Demander changements/Rejeter). **M14** verify
+  gate non-bloquante par défaut + `verify_mode` report|block par loop, rapport attaché au run.
+  **M15** inbox de propositions (table `proposals`) : le cerveau y dépose les sources non-interactives ;
+  hub UI avec Approuver/Modifier/Rejeter. **M16** notifications (table + cloche app + canal Discord prêt).
+  **M17** trigger cron PROPOSE-ONLY (scheduler thread → proposition inbox, jamais un run). **M18** webhook
+  générique + Sentry (secret par source, → proposition inbox). **M19** dashboard coûts & activité.
+  **M20** import d'un repo existant par chat (`import_repo` → provision.import_existing_repo).
+
+**Décisions non triviales** : cerveau + actions dans la gateway (Python testable), proxifiées Next ;
+verify report non-bloquant par défaut (l'humain décide sur la carte) ; cron/webhook PROPOSENT (inbox),
+jamais un run direct (`allow_auto` reste FALSE) ; `applyProposal` = source de vérité unique chat+inbox ;
+import réutilise register_project/ensure_loop (PAS create_user_repo).
+
+**Mocké vs réel** : tests = cerveau (claude -p) + Discord + GitHub API + temps cron + DB tous MOCKÉS ;
+aucun run live dans pytest (164 verts). **Preuves réelles (≤ 0,50 $, pas de merge)** :
+- (a) proposition INBOX réelle (cerveau, source=cron) → approbation → **PR draft #3** + rapport vérif
+  (`skipped`) attaché, stop awaiting_approval, 0,13 $.
+- (b) « Demander des changements » → ancien run **rejected** + run repart avec feedback → **PR draft #4**,
+  stop, 0,15 $. URLs : `github.com/Wrivard/kua-cobaye-test/pull/3` et `/pull/4` (draft, non mergées).
+
+**Reste à faire pour le live complet** (toi, demain) :
+- **Exposer la gateway via Cloudflare** (`deploy/cloudflare-checklist.md`, 7 étapes) + env Vercel → le chat,
+  l'inbox, la revue PR, le dashboard et les notifs s'allument depuis le cell. **Après chaque déploiement de
+  code gateway : `sudo systemctl restart kua-gateway`** (le process live ne charge pas le nouveau code sinon).
+- **Webhook Sentry** : URL `https://engine.oryon-temple.ca/webhooks/sentry` + `WEBHOOK_SECRET_SENTRY` +
+  policy Access (Service Auth par défaut, sinon bypass `/webhooks/*`). Mapper projet Sentry → projet kua.
+- **Bot Discord live** (`docs/17-discord.md`) ; **activation `auto`** façade par façade (reste FALSE) ;
+  swap des SVG logos connecteurs ; cron : configurer `schedule_cron` par loop (panneau config ou chat).
+- Le `/internal/pr` renvoie 500 sur un run_id non-uuid (cosmétique ; les vrais ids sont des uuid).
