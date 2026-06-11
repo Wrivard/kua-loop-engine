@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ProposalCard, type ConfirmedProposal } from "@/components/proposal-card";
-import { createLoop, createThread, ensureLoop, getProjects } from "@/lib/queries";
-import { currentIdentity } from "@/lib/auth";
+import { getProjects } from "@/lib/queries";
+import { applyProposal } from "@/lib/apply-proposal";
 import { cn } from "@/lib/utils";
 import type { AgentProposal, ChatMessage, Project } from "@/lib/types";
 
@@ -115,36 +115,20 @@ export function BrainChat({
   async function confirm(p: ConfirmedProposal) {
     setBusy(true);
     try {
-      if (p.action === "create_thread" && p.project_id) {
-        const loopId = await ensureLoop(p.project_id, p.facade);
-        const author = await currentIdentity();
-        const tid = await createThread(p.project_id, p.facade, loopId, p.title, p.goal, author);
-        dismissProposal();
-        if (tid) {
-          onCreated?.("thread", tid);
-          add({ id: uid(), kind: "text", role: "system", text: "Thread créé ✅" });
-          router.push(`/c/${tid}`);
-        }
-      } else if (p.action === "create_loop" && p.project_id) {
-        const lid = await createLoop(p.project_id, p.facade, { budget_usd: p.budget_usd });
-        dismissProposal();
-        onCreated?.("loop", lid ?? p.project_id);
-        add({ id: uid(), kind: "text", role: "system", text: `Loop « ${p.facade} » créé ✅` });
-        router.push(`/p/${p.project_id}`);
+      const res = await applyProposal(p);
+      dismissProposal();
+      if (res?.kind === "thread") {
+        onCreated?.("thread", res.id);
+        add({ id: uid(), kind: "text", role: "system", text: "Thread créé ✅" });
+        router.push(`/c/${res.id}`);
+      } else if (res?.kind === "loop" || res?.kind === "project") {
+        onCreated?.("loop", res.id);
+        add({ id: uid(), kind: "text", role: "system", text: "Fait ✅" });
+        router.push(`/p/${res.id}`);
+      } else if (res?.kind === "act") {
+        add({ id: uid(), kind: "text", role: "system", text: "Appliqué ✅" });
       } else {
-        // update_loop / pause_loop / resume_loop → allowlist SERVEUR (M4).
-        const r = await fetch("/api/agent/act", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: p.action,
-            loop_id: p.loop_id,
-            patch: { budget_usd: p.budget_usd, title: p.title },
-          }),
-        });
-        const data = await r.json().catch(() => ({}));
-        dismissProposal();
-        add({ id: uid(), kind: "text", role: "system", text: r.ok ? "Appliqué ✅" : data?.error || "Action refusée." });
+        add({ id: uid(), kind: "text", role: "system", text: "Action échouée ou refusée." });
       }
     } catch {
       add({ id: uid(), kind: "text", role: "system", text: "Action échouée." });

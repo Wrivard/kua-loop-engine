@@ -14,6 +14,7 @@ const ACTION_LABEL: Record<string, string> = {
   update_loop: "Modifier le loop",
   pause_loop: "Mettre en pause",
   resume_loop: "Reprendre",
+  import_repo: "Importer un repo",
   none: "Rien à faire",
 };
 
@@ -60,6 +61,7 @@ export function ProposalCard({
   const [budget, setBudget] = useState(String(proposal.budget_usd));
   const [facade, setFacade] = useState(proposal.facade);
   const [projectId, setProjectId] = useState(defaultProjectId ?? "");
+  const [repo, setRepo] = useState(proposal.repo ?? "");
 
   if (proposal.action === "none") {
     return (
@@ -69,9 +71,11 @@ export function ProposalCard({
     );
   }
 
+  const isImport = proposal.action === "import_repo";
   const needsProject = proposal.action === "create_thread" || proposal.action === "create_loop";
-  const showGoal = proposal.action !== "pause_loop" && proposal.action !== "resume_loop";
-  const canConfirm = !busy && title.trim().length > 0 && (!needsProject || !!projectId);
+  const showGoal = !isImport && proposal.action !== "pause_loop" && proposal.action !== "resume_loop";
+  const canConfirm =
+    !busy && title.trim().length > 0 && (!needsProject || !!projectId) && (!isImport || !!repo.trim());
 
   function confirm() {
     onConfirm({
@@ -79,6 +83,7 @@ export function ProposalCard({
       title: title.trim(),
       goal,
       facade,
+      repo: repo.trim(),
       budget_usd: Number(budget) || proposal.budget_usd,
       project_id: projectId || undefined,
     });
@@ -101,6 +106,18 @@ export function ProposalCard({
         <Field label="Titre">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Titre" />
         </Field>
+
+        {isImport && (
+          <Field label="Repo GitHub (owner/nom ou URL)">
+            <Input
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              placeholder="Wrivard/mon-repo"
+              aria-label="Repo"
+              className="font-mono text-xs"
+            />
+          </Field>
+        )}
 
         {needsProject && (
           <Field label="Projet">
@@ -171,7 +188,15 @@ export function ProposalCard({
           Ajuster
         </Button>
         <Button size="sm" onClick={confirm} disabled={!canConfirm}>
-          {busy ? "…" : proposal.action === "create_loop" ? "Créer le loop" : proposal.action === "create_thread" ? "Lancer" : "Appliquer"}
+          {busy
+            ? "…"
+            : isImport
+              ? "Importer"
+              : proposal.action === "create_loop"
+                ? "Créer le loop"
+                : proposal.action === "create_thread"
+                  ? "Lancer"
+                  : "Appliquer"}
         </Button>
       </div>
     </div>

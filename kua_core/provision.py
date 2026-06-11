@@ -14,6 +14,51 @@ from typing import Any
 from kua_core import db, github_api
 
 
+def _parse_repo(repo: str) -> str:
+    """Normalise « owner/nom », « github.com/owner/nom », URL https/git → 'owner/nom'."""
+    s = repo.strip().rstrip("/")
+    if s.endswith(".git"):
+        s = s[:-4]
+    s = s.replace("https://", "").replace("http://", "").replace("git@github.com:", "github.com/")
+    if "github.com/" in s:
+        s = s.split("github.com/", 1)[1]
+    parts = [p for p in s.split("/") if p]
+    if len(parts) < 2:
+        raise ValueError(f"repo invalide : {repo!r} (attendu owner/nom)")
+    return f"{parts[0]}/{parts[1]}"
+
+
+def import_existing_repo(repo: str, *, facade: str = "general", budget_usd: float = 5.0) -> dict[str, Any]:
+    """Importe un repo GitHub EXISTANT : vérifie qu'il existe (et est accessible avec le token —
+    donc qu'il m'appartient) puis l'enregistre comme projet CHARGÉ + une loop. Réutilise
+    register_project/ensure_loop (PAS create_user_repo : le repo existe déjà)."""
+    if budget_usd is None or budget_usd <= 0:
+        raise ValueError("budget_usd doit être > 0.")
+    full = _parse_repo(repo)
+    info = github_api.get_repo(full)
+    if not info:
+        raise ValueError(f"repo introuvable ou inaccessible avec le token : {full}")
+    name = info.get("name") or full.split("/")[-1]
+    slug = slugify(name)
+    repo_url = info.get("clone_url") or f"https://github.com/{full}.git"
+    default_branch = info.get("default_branch") or "main"
+    db.register_project(
+        slug, name, repo_url, default_branch=default_branch, workspace=True, is_engine=False, allow_auto=False
+    )
+    loop_id = db.ensure_loop(slug, facade, autonomy="approve_final", budget_usd=budget_usd)
+    return {
+        "slug": slug,
+        "name": name,
+        "repo_url": repo_url,
+        "html_url": info.get("html_url", ""),
+        "default_branch": default_branch,
+        "full_name": info.get("full_name", full),
+        "facade": facade,
+        "loop_id": loop_id,
+        "workspace": True,
+    }
+
+
 def slugify(name: str) -> str:
     """`name` → slug repo/projet : minuscules, [a-z0-9-], sans tirets aux bords."""
     slug = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")

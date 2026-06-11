@@ -19,7 +19,7 @@ from typing import Any, Optional
 from app import claude_cli
 
 FACADES = ("general", "bugfix", "discord", "demo", "finish", "seo")
-ACTIONS = ("create_thread", "create_loop", "update_loop", "pause_loop", "resume_loop", "none")
+ACTIONS = ("create_thread", "create_loop", "update_loop", "pause_loop", "resume_loop", "import_repo", "none")
 PRIORITIES = ("low", "normal", "high")
 DEFAULT_BUDGET = 5.0
 
@@ -43,6 +43,8 @@ ACTIONS (choisis-en UNE) :
 - create_thread : lancer un travail dans un loop EXISTANT (mets loop_id si le contexte te le donne).
 - create_loop   : il faut un NOUVEAU loop (nouvelle façade pour un projet) — propose nom/façade/budget.
 - update_loop / pause_loop / resume_loop : gérer un loop existant (loop_id requis).
+- import_repo    : l'opérateur veut AJOUTER/IMPORTER un repo GitHub existant (« ajoute mon repo X »).
+                   Mets l'identifiant du repo (owner/nom ou URL) dans le champ "repo".
 - none          : bavardage / hors-scope / pas d'action — explique dans resume_humain.
 
 Si des infos manquent pour agir (projet/repo ? budget ? objectif ?), REMPLIS questions_manquantes
@@ -50,8 +52,9 @@ Si des infos manquent pour agir (projet/repo ? budget ? objectif ?), REMPLIS que
 (quel repo/section), critères d'acceptation, limites. budget_usd = nombre > 0 (défaut 5).
 priority ∈ low|normal|high.
 
-Réponds STRICTEMENT par UN SEUL objet JSON, sans texte autour, avec EXACTEMENT ces clés :
-{"action","facade","loop_id","title","goal","budget_usd","priority","questions_manquantes","resume_humain"}"""
+Réponds STRICTEMENT par UN SEUL objet JSON, sans texte autour, avec EXACTEMENT ces clés (repo = ""
+sauf pour import_repo) :
+{"action","facade","loop_id","repo","title","goal","budget_usd","priority","questions_manquantes","resume_humain"}"""
 
 
 class BrainError(RuntimeError):
@@ -125,6 +128,7 @@ def _coerce(obj: dict[str, Any]) -> dict[str, Any]:
         "action": action,
         "facade": facade,
         "loop_id": loop_id,
+        "repo": str(obj.get("repo") or "")[:200],
         "title": str(obj.get("title") or "")[:120],
         "goal": str(obj.get("goal") or ""),
         "budget_usd": round(budget, 2),

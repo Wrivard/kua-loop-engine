@@ -36,6 +36,7 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
       await setProposalStatus(proposal.id, "approved", await currentIdentity());
       onResolved?.();
       if (res?.kind === "thread") router.push(`/c/${res.id}`);
+      else if (res?.kind === "loop" || res?.kind === "project") router.push(`/p/${res.id}`);
     } catch {
       /* reste affiché */
     } finally {

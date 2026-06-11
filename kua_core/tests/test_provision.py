@@ -76,3 +76,41 @@ def test_provision_registers_loaded_project_and_loop(monkeypatch):
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM loops WHERE project_id=%s", (slug,))
                 cur.execute("DELETE FROM projects WHERE id=%s", (slug,))
+
+
+def test_parse_repo():
+    assert provision._parse_repo("Wrivard/x") == "Wrivard/x"
+    assert provision._parse_repo("https://github.com/Wrivard/x.git") == "Wrivard/x"
+    assert provision._parse_repo("github.com/Wrivard/x/") == "Wrivard/x"
+    assert provision._parse_repo("git@github.com:Wrivard/x.git") == "Wrivard/x"
+    with pytest.raises(ValueError):
+        provision._parse_repo("justname")
+
+
+def test_import_repo_not_found(monkeypatch):
+    monkeypatch.setattr(provision.github_api, "get_repo", lambda full: None)
+    with pytest.raises(ValueError):
+        provision.import_existing_repo("Wrivard/nope")
+
+
+@requires_db
+def test_import_existing_repo_registers_loaded_project(monkeypatch):
+    slug = f"kua-imp-{uuid.uuid4().hex[:8]}"
+    monkeypatch.setattr(provision.github_api, "get_repo", lambda full: {
+        "name": slug, "full_name": f"Wrivard/{slug}",
+        "clone_url": f"https://github.com/Wrivard/{slug}.git",
+        "html_url": f"https://github.com/Wrivard/{slug}", "default_branch": "main",
+        "owner": {"login": "Wrivard"},
+    })
+    try:
+        res = provision.import_existing_repo(f"Wrivard/{slug}", budget_usd=5)
+        assert res["slug"] == slug and res["workspace"] is True
+        proj = db.get_project(slug)
+        assert proj is not None and proj["workspace"] is True
+        assert proj["repo_url"] == f"https://github.com/Wrivard/{slug}.git"
+        assert db.get_loop(slug, "general") is not None
+    finally:
+        with db.connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM loops WHERE project_id=%s", (slug,))
+                cur.execute("DELETE FROM projects WHERE id=%s", (slug,))

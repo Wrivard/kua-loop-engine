@@ -586,6 +586,37 @@ async def internal_pr(run_id: str, request: Request) -> JSONResponse:
     return JSONResponse(content={"status": "ok", "run": run_info, **detail})
 
 
+# Import d'un repo EXISTANT (M20) — vérifie via l'API GitHub (token VPS) + enregistre le projet chargé.
+@app.post("/internal/repo/import")
+async def internal_repo_import(request: Request) -> JSONResponse:
+    if (err := _internal_guard(request)) is not None:
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"status": "invalid_json"})
+    repo = str((body or {}).get("repo", "")).strip()
+    if not repo:
+        return JSONResponse(status_code=400, content={"status": "missing_repo"})
+    facade = str(body.get("facade", "general")) or "general"
+    try:
+        budget = float(body.get("budget_usd", 5))
+    except (TypeError, ValueError):
+        budget = 5.0
+
+    from kua_core.provision import import_existing_repo  # noqa: PLC0415
+
+    try:
+        res = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: import_existing_repo(repo, facade=facade, budget_usd=budget)
+        )
+    except Exception as exc:  # noqa: BLE001
+        log_json("repo_import_failed", repo=repo, error=str(exc))
+        return JSONResponse(status_code=502, content={"status": "import_failed", "error": str(exc)})
+    log_json("repo_import", slug=res["slug"])
+    return JSONResponse(content={"status": "created", **res})
+
+
 # Webhook générique (M18) — POST /webhooks/{source}, secret PAR SOURCE (WEBHOOK_SECRET_*).
 # Payload → cerveau (source=sentry|webhook) → proposition dans l'inbox. PAS de run direct.
 def _webhook_secret(source: str) -> Optional[str]:

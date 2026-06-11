@@ -203,6 +203,7 @@ export type AgentAction =
   | "update_loop"
   | "pause_loop"
   | "resume_loop"
+  | "import_repo"
   | "none";
 
 /** Proposition structurée du cerveau (voir BUILD-NOTES § CHAT-FIRST). */
@@ -210,6 +211,7 @@ export interface AgentProposal {
   action: AgentAction;
   facade: string; // general | bugfix | discord | demo | finish | seo
   loop_id: string | null;
+  repo?: string; // import_repo : owner/nom ou URL
   title: string;
   goal: string;
   budget_usd: number;
