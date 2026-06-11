@@ -385,8 +385,21 @@ def process_approvals() -> list[dict[str, Any]]:
 
 def handle_thread_message(thread_id: str, message: str) -> dict[str, Any]:
     """Réaction de l'agent de façade à un message utilisateur (doc 16). Le message
-    est une DONNÉE (la nuance), pas une instruction. enqueue_run → relance un run
-    avec la précision (greffée sur le goal du dernier run) ; sinon → réponse agent."""
+    est une DONNÉE (la nuance), pas une instruction.
+
+    Agent OUTILLÉ (doc 18, opt-in KUA_AGENT_LLM=1) : claude -p + kua-ops (profil
+    thread_agent, scope projet+thread) — il fait redo_run / répond sur l'état LUI-MÊME.
+    Flag absent ou échec CLI → fallback Phase-1 déterministe (regex « Refaire : … »)."""
+    from agent import runtime  # noqa: PLC0415
+
+    if runtime.llm_enabled():
+        try:
+            res = runtime.run_thread_agent(thread_id, message)
+            db.post_message(thread_id, "agent", res["reply"])
+            return {"action": "llm_reply", "reply": res["reply"]}
+        except Exception:
+            logger.exception("kua: agent outillé a échoué thread=%s — fallback Phase-1", thread_id)
+
     action = agent_decide(thread_id, message)
     if action.kind == "enqueue_run":
         base = db.last_run_goal(thread_id)

@@ -12,8 +12,10 @@ SÉCURITÉ :
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
+import tempfile
 from typing import Any, Optional
 
 from app import claude_cli
@@ -52,6 +54,12 @@ Si des infos manquent pour agir (projet/repo ? budget ? objectif ?), REMPLIS que
 (quel repo/section), critères d'acceptation, limites. budget_usd = nombre > 0 (défaut 5).
 priority ∈ low|normal|high.
 
+OUTILS (kua-ops, lecture seule) : si on te pose une QUESTION D'ÉTAT (« où en est X ? »,
+« combien j'ai dépensé ce mois ? », « quelles loops sont actives ? »), CONSULTE les tools
+(get_costs, get_run_status, get_thread_context, list_loops, get_health, list_proposals) et
+réponds avec les VRAIS chiffres : action="none" et resume_humain = la réponse, brève et précise.
+N'invente JAMAIS un état — sans tools disponibles, dis-le.
+
 Réponds STRICTEMENT par UN SEUL objet JSON, sans texte autour, avec EXACTEMENT ces clés (repo = ""
 sauf pour import_repo) :
 {"action","facade","loop_id","repo","title","goal","budget_usd","priority","questions_manquantes","resume_humain"}"""
@@ -74,15 +82,40 @@ def _build_prompt(message: str, history: list[dict], project_id: Optional[str], 
     return "\n\n".join(parts)
 
 
-def _run_claude(prompt: str, timeout: int = 120) -> str:
+def _tools_args(project_id: Optional[str]) -> tuple[list[str], Optional[str]]:
+    """Args MCP kua-ops (profil brain, LECTURES) — opt-out via KUA_BRAIN_TOOLS=0.
+    Retourne (args, chemin_config_temporaire_à_nettoyer)."""
+    if os.environ.get("KUA_BRAIN_TOOLS", "1").lower() in ("0", "false", "no"):
+        return [], None
+    try:
+        from agent.runtime import build_mcp_config, profile_tools  # noqa: PLC0415
+
+        cfg = build_mcp_config("brain", project_id=project_id, actor="brain")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump(cfg, f)
+        return ["--mcp-config", f.name, "--allowedTools", *profile_tools("brain")], f.name
+    except Exception:  # kua-ops absent / non importable → cerveau sans tools (comme avant)
+        return [], None
+
+
+def _run_claude(prompt: str, timeout: int = 120, project_id: Optional[str] = None) -> str:
     """UNIQUE point d'appel modèle (mocké en test). Retourne le texte `result` de `claude -p`."""
+    tool_args, cfg_path = _tools_args(project_id)
     cmd = [
         claude_cli.claude_bin(), "-p", prompt,
         "--output-format", "json",
         "--max-budget-usd", "0.20",
         "--model", "claude-haiku-4-5-20251001",
+        *tool_args,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=claude_cli.claude_env())
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=claude_cli.claude_env())
+    finally:
+        if cfg_path:
+            try:
+                os.unlink(cfg_path)
+            except OSError:
+                pass
     try:
         return str(json.loads(proc.stdout).get("result") or "")
     except Exception:
@@ -148,7 +181,7 @@ def propose(
     """Trie `message` → AgentProposal (dict validé). Lève BrainError si modèle indispo / illisible."""
     prompt = _build_prompt(message, history or [], project_id, source)
     try:
-        text = _run_claude(prompt, timeout=timeout)
+        text = _run_claude(prompt, timeout=timeout, project_id=project_id)
     except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
         raise BrainError(f"cerveau indisponible ({type(exc).__name__})") from None
     obj = _extract_json(text)

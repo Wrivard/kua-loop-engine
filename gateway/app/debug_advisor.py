@@ -58,9 +58,30 @@ def parse_action(text: str) -> Optional[dict[str, Any]]:
     return None
 
 
+def _read_tools_args() -> tuple[list[str], Optional[str]]:
+    """LECTURES kua-ops pendant l'advise (profil brain = lectures pures, actor=debug-advisor).
+    JAMAIS restart_service ici : l'exécution reste advise → confirmation humaine → act.
+    Audit unifié dans kua-ops. Opt-out KUA_DEBUG_TOOLS=0 ; absent → comme avant."""
+    import os  # noqa: PLC0415
+    import tempfile  # noqa: PLC0415
+
+    if os.environ.get("KUA_DEBUG_TOOLS", "1").lower() in ("0", "false", "no"):
+        return [], None
+    try:
+        from agent.runtime import build_mcp_config, profile_tools  # noqa: PLC0415
+
+        cfg = build_mcp_config("brain", actor="debug-advisor")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump(cfg, f)
+        return ["--mcp-config", f.name, "--allowedTools", *profile_tools("brain")], f.name
+    except Exception:
+        return [], None
+
+
 def advise(question: str, diagnostics_text: str, timeout: int = 90) -> dict[str, Any]:
     """Conseille à partir des diagnostics. Retourne {explanation, proposed_action|None}.
     Timeout 90s < fetch proxy 110s < maxDuration Vercel 120s (marge). env SANS secret."""
+    tool_args, cfg_path = _read_tools_args()
     cmd = [
         claude_cli.claude_bin(), "-p",
         _PROMPT.format(question=question or "Diagnostique l'état du backend.",
@@ -68,11 +89,20 @@ def advise(question: str, diagnostics_text: str, timeout: int = 90) -> dict[str,
         "--output-format", "json",
         "--max-budget-usd", "0.15",
         "--model", "claude-haiku-4-5-20251001",
+        *tool_args,
     ]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=claude_cli.claude_env())
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return {"explanation": "Assistant indisponible (claude introuvable ou délai dépassé).", "proposed_action": None}
+    finally:
+        if cfg_path:
+            import os  # noqa: PLC0415
+
+            try:
+                os.unlink(cfg_path)
+            except OSError:
+                pass
     try:
         text = str(json.loads(proc.stdout).get("result") or "").strip()
     except Exception:

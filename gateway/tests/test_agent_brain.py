@@ -14,7 +14,7 @@ from app.main import app
 
 def _mock_run(monkeypatch, returns):
     """Remplace l'appel modèle par une fonction qui renvoie `returns` (str) ou route par mot-clé (callable)."""
-    fn = returns if callable(returns) else (lambda prompt, timeout=120: returns)
+    fn = returns if callable(returns) else (lambda prompt, timeout=120, **kw: returns)
     monkeypatch.setattr(agent_brain, "_run_claude", fn)
 
 
@@ -35,7 +35,7 @@ def test_parse_valid_bugfix(monkeypatch):
 
 def test_triage_by_case_type(monkeypatch):
     # Mock « intelligent » : route par mot-clé pour exercer le câblage (le vrai triage = le modèle).
-    def router(prompt, timeout=120):
+    def router(prompt, timeout=120, **kw):
         # Ne router que sur le MESSAGE (le system prompt contient déjà « bug », « démo »…).
         p = prompt.split("MESSAGE DE L'OPÉRATEUR")[-1].lower()
         if "bug" in p or "plante" in p:

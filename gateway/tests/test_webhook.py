@@ -20,7 +20,7 @@ def _client(monkeypatch) -> TestClient:
 
 
 def _mock_brain(monkeypatch, action="create_thread"):
-    monkeypatch.setattr(agent_brain, "_run_claude", lambda prompt, timeout=120: json.dumps({
+    monkeypatch.setattr(agent_brain, "_run_claude", lambda prompt, timeout=120, **kw: json.dumps({
         "action": action, "facade": "bugfix", "title": "t", "goal": "g", "budget_usd": 5,
         "priority": "normal", "questions_manquantes": [], "resume_humain": "ok",
     }))
