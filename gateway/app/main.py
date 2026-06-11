@@ -467,6 +467,66 @@ async def internal_agent_propose(request: Request) -> JSONResponse:
     return JSONResponse(content={"status": "ok", "proposal": proposal})
 
 
+# Actions de gestion de loop confirmées par l'humain (chat-first). ALLOWLIST STRICTE :
+# tout ce qui n'est pas listé est REFUSÉ ; `autonomy=auto` (allow_auto) est impossible par ce chemin.
+_ACT_ALLOWLIST = {"update_loop", "pause_loop", "resume_loop"}
+
+
+def _slim_loop(loop: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    if not loop:
+        return None
+    return {
+        "budget_usd": str(loop.get("budget_usd")),  # Decimal → str (JSON)
+        "autonomy": loop.get("autonomy"),
+        "enabled": loop.get("enabled"),
+        "model": loop.get("model"),
+    }
+
+
+@app.post("/internal/agent/act")
+async def internal_agent_act(request: Request) -> JSONResponse:
+    if (err := _internal_guard(request)) is not None:
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"status": "invalid_json"})
+    action = str((body or {}).get("action", ""))
+    loop_id = body.get("loop_id")
+    user = _audit_user(request)
+
+    if action not in _ACT_ALLOWLIST:
+        log_json("agent_act_refused", user=user, action=action, reason="not_allowlisted")
+        return JSONResponse(status_code=400, content={"status": "refused", "error": f"action non autorisée : {action!r}"})
+    if not loop_id or not isinstance(loop_id, str):
+        return JSONResponse(status_code=400, content={"status": "missing_loop_id"})
+
+    from kua_core import db as core_db  # noqa: PLC0415
+
+    before = core_db.get_loop_by_id(loop_id)
+    if not before:
+        return JSONResponse(status_code=404, content={"status": "loop_not_found"})
+
+    patch = body.get("patch") if isinstance(body.get("patch"), dict) else {}
+    if action == "update_loop":
+        if patch.get("autonomy") == "auto":  # JAMAIS auto par le chat (allow_auto reste false)
+            log_json("agent_act_refused", user=user, action=action, reason="auto_forbidden")
+            return JSONResponse(status_code=400, content={"status": "refused", "error": "le mode auto n'est pas activable par le chat"})
+        try:
+            budget = float(patch.get("budget_usd")) if patch.get("budget_usd") is not None else None
+        except (TypeError, ValueError):
+            budget = None
+        core_db.update_loop_fields(loop_id, budget_usd=budget, model=patch.get("model"), autonomy=patch.get("autonomy"))
+    elif action == "pause_loop":
+        core_db.set_loop_enabled(loop_id, False)
+    elif action == "resume_loop":
+        core_db.set_loop_enabled(loop_id, True)
+
+    after = core_db.get_loop_by_id(loop_id)
+    log_json("agent_act", user=user, action=action, loop_id=loop_id)
+    return JSONResponse(content={"status": "ok", "action": action, "before": _slim_loop(before), "after": _slim_loop(after)})
+
+
 @app.post("/hooks/sentry/{project_id}")
 async def sentry_hook(project_id: str, request: Request) -> JSONResponse:
     raw_body = await request.body()

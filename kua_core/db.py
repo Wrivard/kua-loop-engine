@@ -584,6 +584,56 @@ def get_system_status() -> dict[str, Any]:
             return cur.fetchone() or {}
 
 
+# ----------------------------------------- Gestion de loop (chat-first, allowlist) ---
+# Actions confirmées par l'humain via le chat → appliquées ici. `autonomy='auto'` est REFUSÉ
+# en amont (endpoint) ET ignoré ici (défense en profondeur) : allow_auto reste hors d'atteinte.
+
+def get_loop_by_id(loop_id: str) -> Optional[dict[str, Any]]:
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT * FROM loops WHERE id = %s", (loop_id,))
+            return cur.fetchone()
+
+
+def set_loop_enabled(loop_id: str, enabled: bool) -> None:
+    """pause_loop = enabled false (plus de nouveau thread depuis les triggers) ; resume = true."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE loops SET enabled = %s WHERE id = %s", (enabled, loop_id))
+
+
+def update_loop_fields(
+    loop_id: str,
+    *,
+    budget_usd: Optional[float] = None,
+    model: Optional[str] = None,
+    autonomy: Optional[str] = None,
+) -> None:
+    """Maj de champs whitelistés. `autonomy='auto'` est IGNORÉ (jamais activé par le chat)."""
+    from psycopg import sql  # noqa: PLC0415
+
+    sets: list[Any] = []
+    params: list[Any] = []
+    if budget_usd is not None and float(budget_usd) > 0:
+        sets.append(sql.SQL("budget_usd = %s"))
+        params.append(float(budget_usd))
+    if model:
+        sets.append(sql.SQL("model = %s"))
+        params.append(model)
+    if autonomy in ("manual", "approve_final"):  # 'auto' exclu volontairement
+        sets.append(sql.SQL("autonomy = %s"))
+        params.append(autonomy)
+    if not sets:
+        return
+    query = sql.SQL("UPDATE loops SET {} WHERE id = %s").format(sql.SQL(", ").join(sets))
+    params.append(loop_id)
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+
+
 def get_app_setting(key: str) -> dict[str, Any]:
     with connect() as conn:
         with conn.cursor() as cur:
