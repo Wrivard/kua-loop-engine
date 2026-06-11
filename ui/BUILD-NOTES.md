@@ -390,3 +390,36 @@ anti-zoom iOS ; coupe des URLs longues ; open-redirect du login ; aria-pressed/e
 - Le cerveau (`claude -p`) est **MOCKÉ et déterministe** dans pytest (aucun appel modèle réel, aucun run live).
 - **Exception M7** : UN test end-to-end réel sur **`kua-cobaye-test` uniquement**, budget ≤ 0,50 $, **stop à
   `awaiting_approval`** (PR draft, **pas de merge**).
+
+## CHAT-FIRST — livré (nuit 2026-06-11) · mocké vs réel · reste à faire
+
+**Livré par milestone** (tout commité/poussé, pytest+build+lint verts à chaque) :
+- **M0** contrats (ci-dessus). **M1** cerveau gateway `/internal/agent/propose` (claude -p Max, JSON
+  validé/coercé, `_run_claude` mockable, 10 tests). **M2** création loop/thread par conversation
+  (`BrainChat` + `ProposalCard` carte de révision éditable). **M3** accueil chat-first pleine page
+  (`GlobalChat`) + persistance (migration 007 `chat_sessions`/`chat_messages`) ; Inbox → `/inbox`.
+  **M4** gestion loops par chat = allowlist SERVEUR `/internal/agent/act` {update/pause/resume}, `auto`
+  refusé (5 tests). **M5** panneau config loop (complément, même source de vérité). **M6** icônes
+  connecteurs (registre local, fallback pastille, zéro CDN). **M10** fondation Discord (logique pure
+  testée, 10 tests, Discord mocké).
+
+**Mocké vs réel** :
+- Tests : le cerveau (`claude -p`) et Discord sont **MOCKÉS** — aucun appel modèle réel, aucun run live.
+- **Preuve M7 (RÉELLE)** : message → **vrai cerveau claude -p Max** (proposition `create_thread`/discord
+  valide) → confirmation → thread sur `kua-cobaye-test` (budget 0,40 $) → livraison → **PR draft #2**
+  (`https://github.com/Wrivard/kua-cobaye-test/pull/2`), STOP à `awaiting_approval`, coût 0,13 $.
+  **Aucun merge.**
+
+**Reste à faire pour le live complet** (toi, demain) :
+- **Cerveau live depuis Vercel** : exposer la gateway via Cloudflare (`deploy/cloudflare-checklist.md`)
+  PUIS **`sudo systemctl restart kua-gateway`** pour charger les endpoints `/internal/agent/*` (le
+  process live tourne encore l'ancien code → `/internal/agent/propose` répond 404, constaté en M7).
+  Sans ça, le chat affiche « cerveau non joignable » (dégradation propre déjà en place).
+- **Déclencheurs réels** discord / sentry / cron (le panneau config = UI seulement pour l'instant).
+- **Bot Discord live** : `docs/17-discord.md` (token + allowlist + `enable kua-discord`).
+- **Activation `auto`** façade par façade (allow_auto reste false partout).
+- **Swap des SVG logos** connecteurs avec ton image de référence (registre `connector-icon.tsx` prêt).
+- Re-router les actions chat sur la gateway exposée (aujourd'hui `/api/agent/*` → 503 tant que non exposée).
+
+**Sécurité respectée** : aucun merge réel ; allow_auto FALSE ; cœur Runner + auth gateway + `/srv/kua`
+intouchés ; zéro secret en DB ou dans le bundle client (vérifié) ; cerveau = Max (aucune clé API).
