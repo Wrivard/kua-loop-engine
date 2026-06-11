@@ -13,58 +13,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useComposerSink, type ComposerTurn } from "@/components/composer/composer-context";
 import { useLiveQuery } from "@/lib/use-live-query";
 import { getProjectBySlug, getRunsByThread, getThread, getThreadMessages } from "@/lib/queries";
+import { buildThreadView } from "@/lib/thread-view";
+import { latestRun } from "@/lib/run-state";
 import { facadeColor, THREAD_STATUS_LABEL } from "@/lib/facade";
 import type { MessageWithRun, Project, RunRow, ThreadRow } from "@/lib/types";
-
-/** Si un thread a des runs mais aucun message (tôt dans le cycle de vie),
- *  on synthétise une intro + une carte par run — parité avec seedThreadMessages. */
-function synthFromRuns(thread: ThreadRow, runs: RunRow[]): MessageWithRun[] {
-  const out: MessageWithRun[] = [];
-  if (runs[0]) {
-    out.push({
-      id: `${thread.id}-intro`,
-      thread_id: thread.id,
-      role: "agent",
-      author: "Agent",
-      content: runs[0].goal,
-      run_id: null,
-      created_at: thread.created_at,
-      run: null,
-    });
-  }
-  for (const r of runs) {
-    out.push({
-      id: `${r.id}-msg`,
-      thread_id: thread.id,
-      role: "run",
-      author: null,
-      content: null,
-      run_id: r.id,
-      created_at: r.created_at,
-      run: r,
-    });
-  }
-  return out;
-}
 
 type ConversationData = {
   thread: ThreadRow | null;
   project: Project | null;
   messages: MessageWithRun[];
+  runs: RunRow[];
 };
 
 export function ConversationView({ threadId }: { threadId: string }) {
   const { data, loading, error, refetch } = useLiveQuery<ConversationData>(
     async () => {
-      const [thread, messages] = await Promise.all([
+      const [thread, messages, runs] = await Promise.all([
         getThread(threadId),
         getThreadMessages(threadId),
+        getRunsByThread(threadId),
       ]);
       const project = thread?.project_id ? await getProjectBySlug(thread.project_id) : null;
-      // Fallback live : thread avec runs mais sans message → synthèse depuis les runs.
-      const finalMessages =
-        thread && messages.length === 0 ? synthFromRuns(thread, await getRunsByThread(threadId)) : messages;
-      return { thread, project, messages: finalMessages };
+      return { thread, project, messages, runs };
     },
     [
       { table: "messages", filter: `thread_id=eq.${threadId}` },
@@ -76,24 +46,19 @@ export function ConversationView({ threadId }: { threadId: string }) {
     [threadId],
   );
 
-  // Messages envoyés en optimiste ; on ne retire un optimiste QUE lorsque son
-  // équivalent persistant revient (sinon un événement realtime sans rapport
-  // ferait clignoter/disparaître la bulle avant son aller-retour DB).
+  // Écho optimiste (le dock pousse ici) ; retiré quand l'équivalent persistant revient.
   const [extra, setExtra] = useState<MessageWithRun[]>([]);
   useEffect(() => {
     if (!data) return;
-    setExtra((prev) =>
-      prev.filter(
-        (o) => !data.messages.some((m) => m.role === o.role && m.content === o.content),
-      ),
-    );
+    setExtra((prev) => prev.filter((o) => !data.messages.some((m) => m.role === o.role && m.content === o.content)));
   }, [data]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(() => [...(data?.messages ?? []), ...extra], [data, extra]);
+  const view = useMemo(() => buildThreadView(messages, data?.runs ?? []), [messages, data?.runs]);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
+  }, [view.length]);
 
   // Le dock (composer omniprésent) pousse les messages de ce thread → écho optimiste.
   const thread0 = data?.thread ?? null;
@@ -153,7 +118,7 @@ export function ConversationView({ threadId }: { threadId: string }) {
   }
 
   const project = data?.project ?? null;
-  const latestRun = [...messages].reverse().find((m) => m.run)?.run ?? null;
+  const latest = latestRun(data?.runs ?? []);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-6 sm:px-6">
@@ -174,8 +139,8 @@ export function ConversationView({ threadId }: { threadId: string }) {
           )}
           <div className="mt-1 flex items-start justify-between gap-3">
             <h1 className="text-base font-semibold tracking-tight">{thread.subject}</h1>
-            {latestRun ? (
-              <StatusPill status={latestRun.status} className="mt-0.5 shrink-0" />
+            {latest ? (
+              <StatusPill status={latest.status} className="mt-0.5 shrink-0" />
             ) : (
               <Badge className="mt-0.5 shrink-0 bg-muted text-muted-foreground">
                 {THREAD_STATUS_LABEL[thread.status]}
@@ -186,17 +151,30 @@ export function ConversationView({ threadId }: { threadId: string }) {
         </div>
       </header>
 
-      {/* Fil */}
+      {/* Fil — grammaire : message / événement / carte de run unique */}
       <div className="space-y-4 py-6">
-        {messages.map((m) =>
-          m.role === "run" && m.run ? (
-            <RunCard key={m.id} run={m.run} />
+        {view.map((item) =>
+          item.kind === "runcard" ? (
+            <RunCard key={item.id} runs={item.runs} />
+          ) : item.kind === "event" ? (
+            <EventLine key={item.id} text={item.text} />
           ) : (
-            <MessageBubble key={m.id} message={m} />
+            <MessageBubble key={item.id} message={item.message} />
           ),
         )}
         <div ref={bottomRef} />
       </div>
+    </div>
+  );
+}
+
+/** Événement (grammaire type 3) : une ligne fine centrée, jamais une bulle. */
+function EventLine({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-3 py-0.5 text-muted-foreground">
+      <span className="h-px flex-1 bg-border" />
+      <span className="shrink-0 text-center text-[11px]">{text}</span>
+      <span className="h-px flex-1 bg-border" />
     </div>
   );
 }

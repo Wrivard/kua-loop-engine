@@ -12,7 +12,8 @@ import { Expandable } from "@/components/expandable";
 import { PrLink, CostBadge, BranchChip } from "@/components/ui/chips";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/lib/markdown";
-import { statusOf } from "@/lib/facade";
+import { latestRun } from "@/lib/run-state";
+import { reconcileVerify } from "@/lib/verify-reconcile";
 import { cn } from "@/lib/utils";
 import type { ApprovalDecision, RunRow, RunStatus } from "@/lib/types";
 
@@ -21,7 +22,6 @@ function externalHref(value: string | null): string | undefined {
   return value.startsWith("http") ? value : `https://${value}`;
 }
 
-/** Cadre type « fenêtre » pour situer un aperçu (pas de capture réelle en MVP). */
 function Frame({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="overflow-hidden rounded-md border border-border">
@@ -29,9 +29,7 @@ function Frame({ label, children }: { label: string; children: React.ReactNode }
         <span className="h-1.5 w-1.5 rounded-full bg-border" />
         <span className="h-1.5 w-1.5 rounded-full bg-border" />
         <span className="h-1.5 w-1.5 rounded-full bg-border" />
-        <span className="ml-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
+        <span className="ml-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
       </div>
       <div className="flex min-h-[72px] items-center justify-center p-3 text-center">{children}</div>
     </div>
@@ -39,27 +37,33 @@ function Frame({ label, children }: { label: string; children: React.ReactNode }
 }
 
 /**
- * Carte d'un message-run dans une conversation (doc 12) : Fait (markdown), rapport
- * de vérif (VerdictCard), avant-après, livrables (PR/branche/coût en chips),
- * boutons Revue/Confirmer/Refaire. Statut mis à jour en optimiste après décision.
+ * UNE carte par thread qui ÉVOLUE (UX-SPEC §4) : agrège tous les runs comme
+ * versions (v1 repliée, dernière active). Verdict réconcilié en UNE ligne, chips,
+ * actions au pied. `runs` est trié ascendant par buildThreadView.
  */
-export function RunCard({
-  run,
-  onDecided,
-}: {
-  run: RunRow;
-  onDecided?: (decision: ApprovalDecision) => void;
-}) {
+export function RunCard({ runs, onDecided }: { runs: RunRow[]; onDecided?: (decision: ApprovalDecision) => void }) {
+  const active = latestRun(runs) ?? runs[runs.length - 1];
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const run = runs.find((r) => r.id === selectedId) ?? active;
+  const isActive = run.id === active.id;
+
   const [decided, setDecided] = useState<RunStatus | null>(null);
-  const status = decided ?? run.status;
+  const status = isActive && decided ? decided : run.status;
   useEffect(() => {
-    if (decided && (run.status === "approved" || run.status === "pushed" || run.status === "rejected")) {
+    if (decided && (active.status === "approved" || active.status === "pushed" || active.status === "rejected")) {
       setDecided(null);
     }
-  }, [run.status, decided]);
+  }, [active.status, decided]);
 
-  const preview = externalHref(run.preview_url);
   const awaiting = status === "awaiting_approval";
+  const { body, report } = reconcileVerify({
+    status: run.verify_status,
+    command: run.verify_command,
+    output: run.verify_output,
+    summary: run.summary,
+  });
+  const preview = externalHref(run.preview_url);
+  const versions = runs.length;
 
   function handleDecided(decision: ApprovalDecision) {
     setDecided(decision === "approved" ? "approved" : "rejected");
@@ -68,26 +72,43 @@ export function RunCard({
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-start justify-between gap-3 p-4 pb-3">
+      <div className="flex items-start justify-between gap-3 p-4 pb-2.5">
         <p className="text-sm font-medium leading-tight">{run.goal}</p>
         <StatusPill status={status} className="shrink-0" />
       </div>
 
+      {versions > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-4 pb-2 text-[11px] text-muted-foreground">
+          <span>refait {versions - 1}×</span>
+          {runs.map((r, i) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setSelectedId(r.id)}
+              aria-pressed={r.id === run.id}
+              className={cn(
+                "rounded px-1.5 py-0.5 tabular-nums transition-colors",
+                r.id === run.id ? "bg-accent font-medium text-foreground" : "hover:bg-accent/50",
+              )}
+            >
+              v{i + 1}
+            </button>
+          ))}
+          {!isActive && <span className="text-amber-500">version précédente</span>}
+        </div>
+      )}
+
       <div className="space-y-3 px-4 pb-4">
-        {run.summary && (
+        {body && (
           <div className="space-y-1">
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Fait</p>
             <Expandable collapsedHeight={180} fadeClass="from-card">
-              <Markdown>{run.summary}</Markdown>
+              <Markdown>{body}</Markdown>
             </Expandable>
           </div>
         )}
 
-        {run.verify_status && (
-          <VerdictCard
-            input={{ status: run.verify_status, command: run.verify_command, output: run.verify_output }}
-          />
-        )}
+        {report && <VerdictCard report={report} defaultOpen={report.verdict === "FAIL"} />}
 
         {preview && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -108,8 +129,8 @@ export function RunCard({
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <div className={cn("flex items-center gap-2", !awaiting && "min-h-[2rem]")}>
-            {awaiting ? (
+          <div className="flex items-center gap-2">
+            {isActive && awaiting && (
               <>
                 {run.pr_url && (
                   <PrReview
@@ -125,8 +146,6 @@ export function RunCard({
                 )}
                 <ApprovalActions runId={run.id} onDecided={handleDecided} />
               </>
-            ) : (
-              <StatusNote status={status} />
             )}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -139,17 +158,4 @@ export function RunCard({
       </div>
     </Card>
   );
-}
-
-function StatusNote({ status }: { status: RunStatus }) {
-  if (status === "approved" || status === "pushed") {
-    return <span className="text-xs font-medium text-emerald-500">Confirmé</span>;
-  }
-  if (status === "rejected") {
-    return <span className="text-xs font-medium text-muted-foreground">Renvoyé à l&apos;agent</span>;
-  }
-  if (status === "running" || status === "preparing" || status === "verifying") {
-    return <span className="text-xs text-muted-foreground">Run · {statusOf(status).label}…</span>;
-  }
-  return null;
 }

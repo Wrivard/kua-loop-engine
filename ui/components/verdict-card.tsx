@@ -4,13 +4,14 @@ import { useState } from "react";
 import { Check, ChevronDown, ChevronRight, Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Markdown } from "@/lib/markdown";
-import { parseVerifyReport, verdictLabel, type VerifyInput } from "@/lib/verify-report";
+import { parseVerifyReport, verdictLabel, type VerifyInput, type VerifyReport } from "@/lib/verify-report";
 
 type Tone = { dot: string; text: string; ring: string };
 const TONE: Record<string, Tone> = {
   PASS: { dot: "bg-emerald-500", text: "text-emerald-500", ring: "border-emerald-500/25" },
   FAIL: { dot: "bg-red-500", text: "text-red-500", ring: "border-red-500/25" },
-  SKIP: { dot: "bg-muted-foreground/50", text: "text-muted-foreground", ring: "border-border" },
+  // SKIP = caution (amber) : approuver sans vérif est un signal, pas un détail neutre.
+  SKIP: { dot: "bg-amber-500", text: "text-amber-500", ring: "border-amber-500/25" },
   none: { dot: "bg-muted-foreground/50", text: "text-muted-foreground", ring: "border-border" },
 };
 
@@ -21,14 +22,16 @@ const TONE: Record<string, Tone> = {
  */
 export function VerdictCard({
   input,
+  report: reportProp,
   defaultOpen = false,
   className,
 }: {
-  input: VerifyInput;
+  input?: VerifyInput;
+  report?: VerifyReport;
   defaultOpen?: boolean;
   className?: string;
 }) {
-  const report = parseVerifyReport(input);
+  const report = reportProp ?? parseVerifyReport(input);
   const hasDetails = !!report.method || report.steps.length > 0 || !!report.findings;
   const [open, setOpen] = useState(defaultOpen);
 

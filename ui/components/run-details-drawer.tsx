@@ -1,6 +1,5 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,15 +9,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { StatusPill } from "@/components/status-pill";
-import { BranchChip, PrLink } from "@/components/ui/chips";
-import { Markdown } from "@/lib/markdown";
 import { formatCost, timeAgo } from "@/lib/utils";
 import type { RunRow } from "@/lib/types";
-
-function externalHref(value: string | null): string | undefined {
-  if (!value) return undefined;
-  return value.startsWith("http") ? value : `https://${value}`;
-}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -29,7 +21,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-/** Drawer latéral : timeline + méta brute d'un run. Jamais requis pour approuver. */
+/** Drawer « détails » : timeline technique + log d'un run. NE duplique PAS PR/branche/
+ *  coût/résumé (déjà sur la carte). Jamais requis pour approuver. */
 export function RunDetailsDrawer({ run }: { run: RunRow }) {
   const cost = formatCost(run.cost_usd);
   return (
@@ -53,36 +46,7 @@ export function RunDetailsDrawer({ run }: { run: RunRow }) {
             {run.started_at && <Row label="Démarré">{timeAgo(run.started_at)}</Row>}
             {run.finished_at && <Row label="Terminé">{timeAgo(run.finished_at)}</Row>}
             {run.iterations != null && <Row label="Itérations">{run.iterations}</Row>}
-            {run.branch && (
-              <Row label="Branche">
-                <BranchChip branch={run.branch} className="max-w-[12rem]" />
-              </Row>
-            )}
-            {run.pr_url && (
-              <Row label="PR">
-                <PrLink url={run.pr_url} />
-              </Row>
-            )}
-            {run.preview_url && (
-              <Row label="Aperçu">
-                <a
-                  href={externalHref(run.preview_url)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                >
-                  ouvrir <ExternalLink className="h-3 w-3" />
-                </a>
-              </Row>
-            )}
           </div>
-
-          {run.summary && (
-            <div className="mt-4 space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Résumé</p>
-              <Markdown>{run.summary}</Markdown>
-            </div>
-          )}
 
           {run.log_path && (
             <div className="mt-4 space-y-1.5">
