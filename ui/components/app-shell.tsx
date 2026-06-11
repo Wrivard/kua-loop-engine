@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, Menu, LogOut, MessageSquare, Plus, Settings } from "lucide-react";
+import { Activity, Inbox, Menu, LogOut, MessageSquare, Plus, Settings } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const totalAwaiting = list.reduce((sum, p) => sum + p.awaiting, 0) + (proposals?.length ?? 0);
   const isHome = pathname === "/";
   const isInbox = pathname === "/inbox";
+  const isActivity = pathname === "/activity";
 
   async function handleSignOut() {
     await signOut();
@@ -93,6 +94,17 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           <Inbox className="h-4 w-4" />
           Inbox
           <CountBadge n={totalAwaiting} />
+        </Link>
+        <Link
+          href="/activity"
+          onClick={onNavigate}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+            isActivity ? "bg-brand/10 font-medium text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+          )}
+        >
+          <Activity className="h-4 w-4" />
+          Activité
         </Link>
 
         <div className="flex items-center justify-between px-2.5 pb-1 pt-5">
@@ -141,28 +153,23 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </nav>
 
-      {/* Réglages */}
-      <div className="border-t border-border p-2">
-        <Link
-          href="/settings"
-          onClick={onNavigate}
-          className={cn(
-            "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
-            pathname === "/settings"
-              ? "bg-brand/10 font-medium text-foreground"
-              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-          )}
-        >
-          <Settings className="h-4 w-4" />
-          Réglages
-        </Link>
-      </div>
-
-      {/* Footer utilisateur */}
+      {/* Footer utilisateur — Réglages (config froide) vit ici, hors nav primaire */}
       <div className="border-t border-border px-3 py-3">
         {user?.configured ? (
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{user.email}</span>
+            <Link
+              href="/settings"
+              onClick={onNavigate}
+              aria-label="Réglages"
+              title="Réglages"
+              className={cn(
+                "rounded-md p-1.5 transition-colors hover:bg-accent hover:text-foreground",
+                pathname === "/settings" ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
             <button
               onClick={handleSignOut}
               aria-label="Se déconnecter"
@@ -176,6 +183,43 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Tab-bar mobile (jobs) : Inbox · Activité · Projets — juste au-dessus du dock. */
+function MobileTabBar({ onProjects }: { onProjects: () => void }) {
+  const pathname = usePathname();
+  const { data: projects } = useLiveQuery<SidebarProject[]>(getSidebarProjects, ["threads", "loops", "projects"], []);
+  const { data: proposals } = useLiveQuery<Proposal[]>(getPendingProposals, ["proposals"], []);
+  const awaiting = (projects ?? []).reduce((s, p) => s + p.awaiting, 0) + (proposals?.length ?? 0);
+  const itemCls = (active: boolean) =>
+    cn(
+      "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
+      active ? "text-brand" : "text-muted-foreground hover:text-foreground",
+    );
+
+  return (
+    <nav className="flex shrink-0 items-stretch border-t border-border bg-background md:hidden">
+      <Link href="/inbox" className={itemCls(pathname === "/inbox")}>
+        <span className="relative">
+          <Inbox className="h-5 w-5" />
+          {awaiting > 0 && (
+            <span className="absolute -right-2 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold tabular-nums text-brand-foreground">
+              {awaiting > 9 ? "9+" : awaiting}
+            </span>
+          )}
+        </span>
+        Inbox
+      </Link>
+      <Link href="/activity" className={itemCls(pathname === "/activity")}>
+        <Activity className="h-5 w-5" />
+        Activité
+      </Link>
+      <button type="button" onClick={onProjects} className={itemCls(pathname.startsWith("/p/"))}>
+        <Menu className="h-5 w-5" />
+        Projets
+      </button>
+    </nav>
   );
 }
 
@@ -221,6 +265,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </header>
 
             <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+            <MobileTabBar onProjects={() => setMobileOpen(true)} />
             <ComposerDock />
           </div>
         </div>

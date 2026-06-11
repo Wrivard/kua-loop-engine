@@ -73,7 +73,7 @@ export function InboxView() {
         <EmptyState
           icon={<InboxIcon className="h-8 w-8" />}
           title="Rien à confirmer 🎉"
-          description="Tout est traité. Les nouvelles conversations apparaîtront ici."
+          description="Tout est traité. Tape en bas pour dispatcher une nouvelle tâche."
         />
       ) : (
         <div className="space-y-8">
