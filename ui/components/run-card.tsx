@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { ExternalLink, GitPullRequest } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/status-pill";
 import { ApprovalActions } from "@/components/approval-actions";
 import { PrReview } from "@/components/pr-review";
@@ -25,11 +24,11 @@ function externalHref(value: string | null): string | undefined {
 function Frame({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="overflow-hidden rounded-md border border-border">
-      <div className="flex items-center gap-1 border-b border-border bg-muted/40 px-2 py-1.5">
-        <span className="h-1.5 w-1.5 rounded-full bg-border" />
-        <span className="h-1.5 w-1.5 rounded-full bg-border" />
-        <span className="h-1.5 w-1.5 rounded-full bg-border" />
-        <span className="ml-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-1 border-b border-border bg-muted/60 px-2 py-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
+        <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
+        <span className="h-1.5 w-1.5 rounded-full bg-border-strong" />
+        <span className="ml-1 text-xs font-medium uppercase tracking-wide text-faint">{label}</span>
       </div>
       <div className="flex min-h-[72px] items-center justify-center p-3 text-center">{children}</div>
     </div>
@@ -37,9 +36,10 @@ function Frame({ label, children }: { label: string; children: React.ReactNode }
 }
 
 /**
- * UNE carte par thread qui ÉVOLUE (UX-SPEC §4) : agrège tous les runs comme
- * versions (v1 repliée, dernière active). Verdict réconcilié en UNE ligne, chips,
- * actions au pied. `runs` est trié ascendant par buildThreadView.
+ * LA carte de run — composant signature (DESIGN-SYSTEM §6, UX-SPEC §4).
+ * UNE carte par thread qui évolue : en-tête (titre humain + statut), versions en
+ * sélecteur discret, corps (verdict une-ligne + résumé prose), pied = UNE baseline
+ * (chips PR/branche/coût à gauche, actions à droite). Un seul élément dominant.
  */
 export function RunCard({ runs, onDecided }: { runs: RunRow[]; onDecided?: (decision: ApprovalDecision) => void }) {
   const active = latestRun(runs) ?? runs[runs.length - 1];
@@ -71,15 +71,17 @@ export function RunCard({ runs, onDecided }: { runs: RunRow[]; onDecided?: (deci
   }
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-start justify-between gap-3 p-4 pb-2.5">
-        <p className="text-sm font-medium leading-tight">{run.goal}</p>
-        <StatusPill status={status} className="shrink-0" />
+    <div className="overflow-hidden rounded-lg border border-border bg-card animate-slide-in">
+      {/* En-tête : titre humain (dominant) + statut */}
+      <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
+        <p className="min-w-0 flex-1 text-base font-medium leading-snug">{run.goal}</p>
+        <StatusPill status={status} className="mt-0.5 shrink-0" />
       </div>
 
+      {/* Versions — sélecteur discret, pas d'empilement */}
       {versions > 1 && (
-        <div className="flex flex-wrap items-center gap-1.5 px-4 pb-2 text-[11px] text-muted-foreground">
-          <span>refait {versions - 1}×</span>
+        <div className="flex items-center gap-1 px-4 pb-2.5 text-xs">
+          <span className="mr-1 text-faint">versions</span>
           {runs.map((r, i) => (
             <button
               key={r.id}
@@ -87,28 +89,27 @@ export function RunCard({ runs, onDecided }: { runs: RunRow[]; onDecided?: (deci
               onClick={() => setSelectedId(r.id)}
               aria-pressed={r.id === run.id}
               className={cn(
-                "rounded px-1.5 py-0.5 tabular-nums transition-colors",
-                r.id === run.id ? "bg-accent font-medium text-foreground" : "hover:bg-accent/50",
+                "rounded-sm px-1.5 py-0.5 tabular-nums transition-colors duration-150",
+                r.id === run.id
+                  ? "bg-secondary font-medium text-foreground"
+                  : "text-faint hover:bg-accent hover:text-foreground",
               )}
             >
               v{i + 1}
             </button>
           ))}
-          {!isActive && <span className="text-amber-500">version précédente</span>}
+          {!isActive && <span className="ml-1 text-warn">version précédente</span>}
         </div>
       )}
 
-      <div className="space-y-3 px-4 pb-4">
-        {body && (
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Fait</p>
-            <Expandable collapsedHeight={180} fadeClass="from-card">
-              <Markdown>{body}</Markdown>
-            </Expandable>
-          </div>
-        )}
-
+      <div className="space-y-3 px-4 pb-3">
         {report && <VerdictCard report={report} defaultOpen={report.verdict === "FAIL"} />}
+
+        {body && (
+          <Expandable collapsedHeight={176} fadeClass="from-card">
+            <Markdown className="text-muted-foreground">{body}</Markdown>
+          </Expandable>
+        )}
 
         {preview && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -127,35 +128,36 @@ export function RunCard({ runs, onDecided }: { runs: RunRow[]; onDecided?: (deci
             </Frame>
           </div>
         )}
+      </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <div className="flex items-center gap-2">
-            {isActive && awaiting && (
-              <>
-                {run.pr_url && (
-                  <PrReview
-                    runId={run.id}
-                    onDecided={handleDecided}
-                    trigger={
-                      <Button size="sm" variant="outline">
-                        <GitPullRequest className="h-4 w-4" />
-                        Revue
-                      </Button>
-                    }
-                  />
-                )}
-                <ApprovalActions runId={run.id} onDecided={handleDecided} />
-              </>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <PrLink url={run.pr_url} />
-            <BranchChip branch={run.branch} className="max-w-[10rem]" />
-            <CostBadge usd={run.cost_usd} />
-            <RunDetailsDrawer run={run} />
-          </div>
+      {/* Pied : UNE baseline — chips à gauche, actions à droite */}
+      <div className="flex min-h-[3rem] flex-wrap items-center gap-x-2 gap-y-2 border-t border-border px-4 py-2.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <PrLink url={run.pr_url} />
+          <BranchChip branch={run.branch} className="max-w-[10rem]" />
+          <CostBadge usd={run.cost_usd} />
+          <RunDetailsDrawer run={run} />
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {isActive && awaiting && (
+            <>
+              {run.pr_url && (
+                <PrReview
+                  runId={run.id}
+                  onDecided={handleDecided}
+                  trigger={
+                    <Button size="sm" variant="outline">
+                      <GitPullRequest className="h-4 w-4" strokeWidth={1.75} />
+                      Revue
+                    </Button>
+                  }
+                />
+              )}
+              <ApprovalActions runId={run.id} onDecided={handleDecided} />
+            </>
+          )}
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

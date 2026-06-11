@@ -16,6 +16,7 @@ import { getProjectBySlug, getRunsByThread, getThread, getThreadMessages } from 
 import { buildThreadView } from "@/lib/thread-view";
 import { latestRun } from "@/lib/run-state";
 import { facadeColor, THREAD_STATUS_LABEL } from "@/lib/facade";
+import { cn } from "@/lib/utils";
 import type { MessageWithRun, Project, RunRow, ThreadRow } from "@/lib/types";
 
 type ConversationData = {
@@ -121,7 +122,7 @@ export function ConversationView({ threadId }: { threadId: string }) {
   const latest = latestRun(data?.runs ?? []);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[45rem] px-4 pb-6 sm:px-6">
       {/* Header */}
       <header
         className="sticky top-0 z-10 border-b border-border bg-background/85 py-4 backdrop-blur"
@@ -151,29 +152,45 @@ export function ConversationView({ threadId }: { threadId: string }) {
         </div>
       </header>
 
-      {/* Fil — grammaire : message / événement / carte de run unique */}
-      <div className="space-y-4 py-6">
-        {view.map((item) =>
-          item.kind === "runcard" ? (
-            <RunCard key={item.id} runs={item.runs} />
-          ) : item.kind === "event" ? (
-            <EventLine key={item.id} text={item.text} />
-          ) : (
-            <MessageBubble key={item.id} message={item.message} />
-          ),
-        )}
+      {/* Fil — grammaire : message / événement / carte de run unique.
+          Rythme : serré DANS un groupe (suite même rôle), aéré ENTRE les groupes ;
+          horodatage discret au groupe (dernier message d'une suite). */}
+      <div className="py-6">
+        {view.map((item, i) => {
+          const prev = view[i - 1];
+          const next = view[i + 1];
+          const sameAsPrev =
+            item.kind === "message" &&
+            prev?.kind === "message" &&
+            prev.message.role === item.message.role;
+          const sameAsNext =
+            item.kind === "message" &&
+            next?.kind === "message" &&
+            next.message.role === item.message.role;
+          return (
+            <div key={item.id} className={cn(i > 0 && (sameAsPrev ? "mt-1.5" : "mt-6"))}>
+              {item.kind === "runcard" ? (
+                <RunCard runs={item.runs} />
+              ) : item.kind === "event" ? (
+                <EventLine text={item.text} />
+              ) : (
+                <MessageBubble message={item.message} showMeta={!sameAsNext} />
+              )}
+            </div>
+          );
+        })}
         <div ref={bottomRef} />
       </div>
     </div>
   );
 }
 
-/** Événement (grammaire type 3) : une ligne fine centrée, jamais une bulle. */
+/** Événement (grammaire type 3) : ultra-discret — il s'efface devant le contenu. */
 function EventLine({ text }: { text: string }) {
   return (
-    <div className="flex items-center gap-3 py-0.5 text-muted-foreground">
+    <div className="flex items-center gap-3 py-0.5 text-faint">
       <span className="h-px flex-1 bg-border" />
-      <span className="shrink-0 text-center text-[11px]">{text}</span>
+      <span className="shrink-0 text-center text-xs">{text}</span>
       <span className="h-px flex-1 bg-border" />
     </div>
   );

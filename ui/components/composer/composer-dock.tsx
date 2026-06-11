@@ -193,11 +193,11 @@ export function ComposerDock() {
         : "Décris une tâche, ou tape @ pour cibler un projet…";
 
   return (
-    <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur">
-      <div className="mx-auto w-full max-w-3xl px-3 pb-[env(safe-area-inset-bottom)] pt-2">
+    <div className="shrink-0 bg-gradient-to-t from-background via-background/95 to-background/0 pt-1.5">
+      <div className="mx-auto w-full max-w-[45rem] px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         {/* Strip de conversation (vues sans journal : inbox, projet, activité…) */}
         {!sink && localTurns.length > 0 && (
-          <div className="mb-2 max-h-[40vh] space-y-2 overflow-y-auto rounded-xl border border-border bg-card/60 p-3">
+          <div className="mb-2 max-h-[40vh] space-y-2.5 overflow-y-auto rounded-lg border border-border bg-popover p-3 shadow-float animate-slide-in">
             {localTurns.slice(-8).map((t) => (
               <DockTurn key={t.id} turn={t} />
             ))}
@@ -206,7 +206,7 @@ export function ComposerDock() {
 
         {/* Proposition inline (au-dessus du dock) */}
         {proposal && (
-          <div className="mb-2 max-h-[55vh] overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-lg">
+          <div className="mb-2 max-h-[55vh] overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-float animate-slide-in">
             <ProposalCard
               proposal={proposal}
               projects={projects}
@@ -221,7 +221,7 @@ export function ComposerDock() {
 
         {/* Autocomplete @mention */}
         {mentionQ != null && suggestions.length > 0 && (
-          <div className="mb-2 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+          <div className="mb-2 overflow-hidden rounded-md border border-border bg-popover shadow-float animate-fade-in">
             {suggestions.map((s) => (
               <button
                 key={`${s.kind}:${s.value}`}
@@ -271,7 +271,15 @@ export function ComposerDock() {
         )}
 
         {/* Dock */}
-        <div className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 focus-within:ring-1 focus-within:ring-brand">
+        {thinking && (
+          <p className="flex items-center gap-2 px-1 pb-1.5 text-xs text-faint">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand" aria-hidden />
+            le cerveau réfléchit…
+          </p>
+        )}
+
+        {/* Le dock : surface élevée flottante, focus-ring brand. */}
+        <div className="flex items-end gap-2 rounded-lg border border-border bg-popover p-2 shadow-float transition-colors duration-150 focus-within:border-brand/40">
           <Textarea
             ref={taRef}
             value={input}
@@ -292,32 +300,29 @@ export function ComposerDock() {
             <ArrowUp className="h-4 w-4" />
           </Button>
         </div>
-        {thinking && <p className="px-1 pt-1 text-[11px] text-muted-foreground">le cerveau réfléchit…</p>}
       </div>
     </div>
   );
 }
 
-/** Rendu d'un tour dans le strip local (grammaire : user / agent markdown / événement). */
+/** Rendu d'un tour dans le strip local (grammaire : user bulle / agent prose / événement). */
 function DockTurn({ turn }: { turn: ComposerTurn }) {
   if (turn.role === "proposal") return null;
   if (turn.role === "system") {
-    return <p className="text-center text-[11px] text-muted-foreground">{turn.text}</p>;
+    return <p className="text-center text-xs text-faint">{turn.text}</p>;
   }
   if (turn.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-lg bg-secondary px-3 py-1.5 text-sm text-secondary-foreground">
+        <div className="max-w-[78%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-lg rounded-br-sm bg-secondary px-3 py-1.5 text-base text-secondary-foreground">
           {turn.text}
         </div>
       </div>
     );
   }
   return (
-    <div className="flex justify-start">
-      <div className="max-w-[88%] rounded-lg rounded-tl-sm border border-border bg-card px-3 py-2">
-        <Markdown>{turn.text}</Markdown>
-      </div>
+    <div className="max-w-[92%]">
+      <Markdown>{turn.text}</Markdown>
     </div>
   );
 }

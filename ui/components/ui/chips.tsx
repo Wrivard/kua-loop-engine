@@ -46,11 +46,11 @@ export function PrLink({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-xs font-medium text-foreground transition-colors hover:border-brand/40 hover:text-brand",
+        "inline-flex h-6 items-center gap-1 rounded-sm border border-border px-1.5 text-xs font-medium text-foreground transition-colors duration-150 hover:border-brand/40 hover:text-brand",
         className,
       )}
     >
-      <GitPullRequest className="h-3.5 w-3.5 shrink-0" />
+      <GitPullRequest className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
       <span className="tabular-nums">{number != null ? `#${number}` : "PR"}</span>
       {showRepo && repo && <span className="truncate text-muted-foreground">{repo}</span>}
     </a>
@@ -63,7 +63,7 @@ export function CostBadge({ usd, className }: { usd: number | string | null | un
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground",
+        "inline-flex h-6 items-center rounded-sm bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground",
         className,
       )}
     >
@@ -77,12 +77,12 @@ export function BranchChip({ branch, className }: { branch: string | null | unde
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground",
+        "inline-flex h-6 max-w-full items-center gap-1 rounded-sm bg-muted px-1.5 font-mono text-xs text-muted-foreground",
         className,
       )}
       title={branch}
     >
-      <GitBranch className="h-3 w-3 shrink-0" />
+      <GitBranch className="h-3 w-3 shrink-0" strokeWidth={1.75} />
       <span className="truncate">{branch}</span>
     </span>
   );
@@ -135,11 +135,11 @@ export function SourceChip({ source, className }: { source: string; className?: 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground",
+        "inline-flex h-6 items-center gap-1 rounded-full bg-muted px-2 text-xs font-medium text-muted-foreground",
         className,
       )}
     >
-      <Icon className={cn("h-3 w-3 shrink-0", s.color)} />
+      <Icon className={cn("h-3 w-3 shrink-0", s.color)} strokeWidth={1.75} />
       {s.label}
     </span>
   );

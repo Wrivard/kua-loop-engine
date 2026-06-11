@@ -538,3 +538,17 @@ correctifs appliqués, 5 faux positifs rejetés avec justification (détail : UX
 
 **Reste (P2)** : filtre inbox, barre de progrès réelle (événements backend requis), undo court,
 unification Notifications↔Inbox, coloration syntaxique diff, visualViewport clavier iOS.
+
+## PASSE VISUELLE HAUT DE GAMME (loop design final, 2026-06-11) — V1→V6
+
+**V2 Chat — avant/après** : largeur de lecture 768→**720px** ; bulles agent en boîtes grises →
+**prose éditoriale sans bulle** (titres à peine plus grands, listes aérées, inline-code discret) ;
+bulle user accent → compacte `secondary` coin droit cassé ; horodatage par bulle → **au groupe**
+(dernier d'une suite) ; rythme plat (space-y-4 uniforme) → **serré dans un groupe (6px), aéré entre
+(24px)** ; événements gris moyens → **tertiaires effacés** ; carte de run = boîte empilée →
+**composant signature** (en-tête titre dominant + statut, versions en sélecteur discret, verdict
+une-ligne avec icône bouclier fine, résumé en prose secondaire, **pied = une baseline** chips
+gauche/actions droite séparée par un filet) ; dock barre collée pleine largeur → **dock flottant**
+(surface élevée + shadow-float + dégradé de fond, focus border brand, « le cerveau réfléchit » avec
+point brand pulsé) ; chips hétéroclites → **baseline h-6 unifiée** (rect = méta techniques, pills =
+états/sources).

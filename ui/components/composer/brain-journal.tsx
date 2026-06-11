@@ -6,7 +6,6 @@ import { Markdown } from "@/lib/markdown";
 import { Expandable } from "@/components/expandable";
 import { getChatMessages, getOrCreateChatSession, insertChatMessage, newChatSession } from "@/lib/queries";
 import { currentIdentity } from "@/lib/auth";
-import { cn } from "@/lib/utils";
 
 let _uid = 0;
 const uid = () => `j${(_uid += 1)}`;
@@ -61,7 +60,7 @@ export function BrainJournal() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-5 sm:px-6">
+    <div className="mx-auto flex w-full max-w-[45rem] flex-col px-4 py-5 sm:px-6">
       <div className="mb-4 flex items-start justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
@@ -88,7 +87,7 @@ export function BrainJournal() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-5">
         {turns.map((t) => (
           <JournalTurn key={t.id} turn={t} />
         ))}
@@ -102,9 +101,9 @@ function JournalTurn({ turn }: { turn: ComposerTurn }) {
   if (turn.role === "proposal") return null; // les propositions vivent dans le dock
   if (turn.role === "system") {
     return (
-      <div className="flex items-center gap-3 py-0.5 text-muted-foreground">
+      <div className="flex items-center gap-3 py-0.5 text-faint">
         <span className="h-px flex-1 bg-border" />
-        <span className="shrink-0 text-center text-[11px]">{turn.text}</span>
+        <span className="shrink-0 text-center text-xs">{turn.text}</span>
         <span className="h-px flex-1 bg-border" />
       </div>
     );
@@ -112,19 +111,18 @@ function JournalTurn({ turn }: { turn: ComposerTurn }) {
   if (turn.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-lg bg-secondary px-3.5 py-2 text-sm leading-relaxed text-secondary-foreground">
+        <div className="max-w-[78%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-lg rounded-br-sm bg-secondary px-3.5 py-2 text-base text-secondary-foreground">
           {turn.text}
         </div>
       </div>
     );
   }
+  // Agent = prose éditoriale, sans bulle (DESIGN-SYSTEM §6).
   return (
-    <div className={cn("flex justify-start")}>
-      <div className="max-w-[88%] rounded-lg rounded-tl-sm border border-border bg-card px-3.5 py-2.5">
-        <Expandable collapsedHeight={200} fadeClass="from-card">
-          <Markdown>{turn.text}</Markdown>
-        </Expandable>
-      </div>
+    <div className="max-w-[92%] animate-fade-in">
+      <Expandable collapsedHeight={220} fadeClass="from-background">
+        <Markdown>{turn.text}</Markdown>
+      </Expandable>
     </div>
   );
 }

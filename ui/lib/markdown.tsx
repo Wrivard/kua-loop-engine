@@ -42,7 +42,7 @@ function renderInline(nodes: Inline[], key: string): ReactNode[] {
         return (
           <code
             key={k}
-            className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em] text-foreground [overflow-wrap:anywhere]"
+            className="rounded-sm bg-muted px-1 py-px font-mono text-[0.9em] text-foreground [overflow-wrap:anywhere]"
           >
             {n.v}
           </code>
@@ -63,24 +63,26 @@ function renderInline(nodes: Inline[], key: string): ReactNode[] {
   });
 }
 
+/** Prose éditoriale (DESIGN-SYSTEM §3/§6) : titres à peine plus grands, listes aérées,
+ *  inline-code discret — la réponse d'agent doit lire comme un éditeur premium. */
 function renderBlock(b: Block, key: string): ReactNode {
   switch (b.t) {
     case "h": {
       const inner = renderInline(b.c, key);
       if (b.level === 1)
         return (
-          <h3 key={key} className="mt-1 text-[0.95rem] font-semibold tracking-tight first:mt-0">
+          <h3 key={key} className="mt-3 text-lg font-semibold tracking-tight first:mt-0">
             {inner}
           </h3>
         );
       if (b.level === 2)
         return (
-          <h4 key={key} className="mt-1 text-sm font-semibold tracking-tight first:mt-0">
+          <h4 key={key} className="mt-3 text-base font-semibold tracking-tight first:mt-0">
             {inner}
           </h4>
         );
       return (
-        <h5 key={key} className="mt-1 text-sm font-medium text-muted-foreground first:mt-0">
+        <h5 key={key} className="mt-2 text-base font-medium text-muted-foreground first:mt-0">
           {inner}
         </h5>
       );
@@ -89,10 +91,10 @@ function renderBlock(b: Block, key: string): ReactNode {
       return <p key={key}>{renderInline(b.c, key)}</p>;
     case "ul":
       return (
-        <ul key={key} className="ml-1 space-y-1">
+        <ul key={key} className="ml-1 space-y-1.5">
           {b.items.map((it, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="mt-[0.45em] h-1 w-1 shrink-0 rounded-full bg-muted-foreground" aria-hidden />
+            <li key={i} className="flex gap-2.5">
+              <span className="mt-[0.55em] h-1 w-1 shrink-0 rounded-full bg-faint" aria-hidden />
               <span className="min-w-0 flex-1">{renderInline(it, `${key}.${i}`)}</span>
             </li>
           ))}
@@ -100,10 +102,10 @@ function renderBlock(b: Block, key: string): ReactNode {
       );
     case "ol":
       return (
-        <ol key={key} className="ml-1 space-y-1">
+        <ol key={key} className="ml-1 space-y-1.5">
           {b.items.map((it, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="shrink-0 tabular-nums text-muted-foreground">{i + 1}.</span>
+            <li key={i} className="flex gap-2.5">
+              <span className="shrink-0 tabular-nums text-faint">{i + 1}.</span>
               <span className="min-w-0 flex-1">{renderInline(it, `${key}.${i}`)}</span>
             </li>
           ))}
@@ -113,17 +115,14 @@ function renderBlock(b: Block, key: string): ReactNode {
       return (
         <pre
           key={key}
-          className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap"
+          className="overflow-x-auto whitespace-pre-wrap rounded-md border border-border bg-muted p-3 font-mono text-xs [overflow-wrap:anywhere]"
         >
           <code>{b.v}</code>
         </pre>
       );
     case "quote":
       return (
-        <blockquote
-          key={key}
-          className="border-l-2 border-border pl-3 text-muted-foreground"
-        >
+        <blockquote key={key} className="border-l-2 border-border-strong pl-3 text-muted-foreground">
           {renderInline(b.c, key)}
         </blockquote>
       );
@@ -134,7 +133,7 @@ export function Markdown({ children, className }: { children: string | null | un
   const blocks = parseMarkdown(children ?? "");
   if (blocks.length === 0) return null;
   return (
-    <div className={cn("space-y-2 text-sm leading-relaxed [overflow-wrap:anywhere]", className)}>
+    <div className={cn("space-y-2.5 text-base [overflow-wrap:anywhere]", className)}>
       {blocks.map((b, i) => renderBlock(b, `b${i}`))}
     </div>
   );
