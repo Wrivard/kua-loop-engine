@@ -114,6 +114,23 @@ def test_endpoint_missing_message(monkeypatch):
     config.get_settings.cache_clear()
 
 
+def test_endpoint_persists_inbox_for_nonui_only(monkeypatch):
+    _mock_run(monkeypatch, json.dumps({"action": "create_thread", "facade": "bugfix", "title": "t", "goal": "g",
+                                       "budget_usd": 5, "priority": "normal", "questions_manquantes": [], "resume_humain": "ok"}))
+    import kua_core.db as kdb
+    calls = []
+    monkeypatch.setattr(kdb, "create_proposal", lambda src, pid, payload: (calls.append(src) or "prop-1"))
+    client = _client(monkeypatch)
+    # discord (non-interactif) → écrit dans l'inbox
+    r = client.post("/internal/agent/propose", json={"message": "un bug", "source": "discord"}, headers=_AUTH)
+    assert r.json()["proposal_id"] == "prop-1" and calls == ["discord"]
+    # ui (chat) → confirmé inline, PAS d'écriture inbox
+    calls.clear()
+    r2 = client.post("/internal/agent/propose", json={"message": "un bug", "source": "ui"}, headers=_AUTH)
+    assert r2.json()["proposal_id"] is None and calls == []
+    config.get_settings.cache_clear()
+
+
 def test_endpoint_happy_path(monkeypatch):
     _mock_run(monkeypatch, json.dumps({"action": "create_thread", "facade": "bugfix", "title": "t",
                                        "goal": "g", "budget_usd": 5, "priority": "normal",

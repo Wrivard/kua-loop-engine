@@ -15,10 +15,10 @@ import {
 import { FacadeDot } from "@/components/facade-mark";
 import { NewProjectDialog } from "@/components/new-project-dialog";
 import { useLiveQuery } from "@/lib/use-live-query";
-import { getSidebarProjects } from "@/lib/queries";
+import { getPendingProposals, getSidebarProjects } from "@/lib/queries";
 import { useCurrentUser, signOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import type { SidebarProject } from "@/lib/types";
+import type { Proposal, SidebarProject } from "@/lib/types";
 
 function CountBadge({ n }: { n: number }) {
   if (n <= 0) return null;
@@ -37,10 +37,11 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     ["threads", "loops", "projects"],
     [],
   );
+  const { data: proposals } = useLiveQuery<Proposal[]>(getPendingProposals, ["proposals"], []);
   const { user } = useCurrentUser();
 
   const list = projects ?? [];
-  const totalAwaiting = list.reduce((sum, p) => sum + p.awaiting, 0);
+  const totalAwaiting = list.reduce((sum, p) => sum + p.awaiting, 0) + (proposals?.length ?? 0);
   const isHome = pathname === "/";
   const isInbox = pathname === "/inbox";
 

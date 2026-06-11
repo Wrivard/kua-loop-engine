@@ -647,6 +647,19 @@ def update_loop_fields(
             cur.execute(query, params)
 
 
+def create_proposal(source: str, project_id: Optional[str], payload: dict[str, Any]) -> str:
+    """Écrit une proposition du cerveau dans l'inbox (migration 010). Retourne l'id."""
+    from psycopg.types.json import Json  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO proposals (source, project_id, payload) VALUES (%s, %s, %s) RETURNING id",
+                (source, project_id, Json(payload)),
+            )
+            return str(cur.fetchone()[0])
+
+
 def get_app_setting(key: str) -> dict[str, Any]:
     with connect() as conn:
         with conn.cursor() as cur:

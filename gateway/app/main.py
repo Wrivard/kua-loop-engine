@@ -463,8 +463,21 @@ async def internal_agent_propose(request: Request) -> JSONResponse:
     except agent_brain.BrainError as exc:
         log_json("agent_propose_failed", user=user, source=source, error=str(exc))
         return JSONResponse(status_code=502, content={"status": "brain_error", "message": str(exc)})
+
+    # Inbox : les sources NON-interactives (discord|sentry|cron|webhook) déposent leurs propositions
+    # ACTIONNABLES dans la table proposals. Le chat (source=ui) confirme inline → pas d'écriture.
+    proposal_id = None
+    actionable = proposal["action"] in ("create_thread", "create_loop") and not proposal["questions_manquantes"]
+    if source != "ui" and actionable:
+        try:
+            from kua_core import db as core_db  # noqa: PLC0415
+
+            proposal_id = core_db.create_proposal(source, project_id, proposal)
+        except Exception as exc:  # noqa: BLE001
+            log_json("proposal_persist_failed", source=source, error=str(exc))
+
     log_json("agent_propose", user=user, source=source, action=proposal["action"], facade=proposal["facade"])
-    return JSONResponse(content={"status": "ok", "proposal": proposal})
+    return JSONResponse(content={"status": "ok", "proposal": proposal, "proposal_id": proposal_id})
 
 
 # Actions de gestion de loop confirmées par l'humain (chat-first). ALLOWLIST STRICTE :

@@ -218,6 +218,16 @@ export interface AgentProposal {
   resume_humain: string;
 }
 
+/** Proposition du cerveau dans l'inbox (migration 010). */
+export interface Proposal {
+  id: string;
+  source: string; // chat|discord|sentry|cron|webhook
+  project_id: string | null;
+  payload: AgentProposal;
+  status: "pending" | "approved" | "dismissed" | "expired";
+  created_at: string;
+}
+
 /** Session de chat persistée (accueil chat-first, migration 007). */
 export interface ChatSession {
   id: string;

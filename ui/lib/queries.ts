@@ -35,6 +35,7 @@ import type {
   ProjectConnector,
   ProjectMcp,
   ProjectSkill,
+  Proposal,
   RunRow,
   SidebarProject,
   SystemSettings,
@@ -332,6 +333,32 @@ export async function updateLoopTrigger(loopId: string, trigger: string): Promis
   const { data } = await supabase.from("loops").select("config").eq("id", loopId).maybeSingle();
   const config = { ...((data as { config?: Record<string, unknown> } | null)?.config ?? {}), trigger };
   const { error } = await supabase.from("loops").update({ config }).eq("id", loopId);
+  if (error) throw error;
+}
+
+// --- Inbox de propositions (migration 010) ---
+
+export async function getPendingProposals(): Promise<Proposal[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("proposals")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as Proposal[]) ?? [];
+}
+
+export async function setProposalStatus(
+  id: string,
+  status: "approved" | "dismissed" | "expired",
+  decidedBy?: string,
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from("proposals")
+    .update({ status, decided_at: new Date().toISOString(), decided_by: decidedBy ?? null })
+    .eq("id", id);
   if (error) throw error;
 }
 
