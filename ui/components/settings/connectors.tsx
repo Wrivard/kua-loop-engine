@@ -3,7 +3,8 @@
 import { useLiveQuery } from "@/lib/use-live-query";
 import { getAppConnections } from "@/lib/queries";
 import { CONNECTOR_TYPES } from "@/lib/connectors";
-import { ConnStatus, ConnectorIcon, KindBadge, ScopeBadge } from "@/components/connector-bits";
+import { ConnStatus, KindBadge, ScopeBadge } from "@/components/connector-bits";
+import { ConnectorIcon } from "@/components/connector-icon";
 import { McpWizard } from "@/components/mcp-wizard";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -38,7 +39,7 @@ export function ConnectorsSettings() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <ConnectorIcon />
+                    <ConnectorIcon type={t.type} />
                     <span className="text-sm font-medium">{t.label}</span>
                     <KindBadge kind={t.kind} />
                     <ScopeBadge shareable={t.shareable} />

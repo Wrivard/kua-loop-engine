@@ -13,7 +13,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ConnStatus, ConnectorIcon, ScopeBadge } from "@/components/connector-bits";
+import { ConnStatus, ScopeBadge } from "@/components/connector-bits";
+import { ConnectorIcon } from "@/components/connector-icon";
 import { McpWizard } from "@/components/mcp-wizard";
 import { Plus } from "lucide-react";
 import { useLiveQuery } from "@/lib/use-live-query";
@@ -116,7 +117,7 @@ export function ProjectSettingsDrawer({
                 <div key={t.type} className="rounded-lg border border-border p-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <ConnectorIcon />
+                      <ConnectorIcon type={t.type} />
                       <span className="text-sm font-medium">{t.label}</span>
                       <ScopeBadge shareable={t.shareable} />
                     </div>
