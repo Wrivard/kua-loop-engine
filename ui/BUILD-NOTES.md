@@ -423,3 +423,15 @@ anti-zoom iOS ; coupe des URLs longues ; open-redirect du login ; aria-pressed/e
 
 **Sécurité respectée** : aucun merge réel ; allow_auto FALSE ; cœur Runner + auth gateway + `/srv/kua`
 intouchés ; zéro secret en DB ou dans le bundle client (vérifié) ; cerveau = Max (aucune clé API).
+
+## M12 — cerveau LIVE vérifié (gateway rechargée)
+
+`sudo -n systemctl restart kua-gateway` (sudoers allowlist) → `/health` 200 → l'endpoint
+`/internal/agent/propose` répond (le process live charge enfin les endpoints `/internal/agent/*`).
+Triage réel correct (3 requêtes types, anonymisées) :
+- « bug formulaire de contact mobile sur site client » → `create_thread` · **bugfix** ✓
+- « ajouter une section témoignages sur un site client » → `create_thread` · **discord/Modifs** ✓
+- « météo à Montréal ? » → **`none`** (hors-scope, explication propre) ✓
+Aucune correction nécessaire. ⇒ Le chat-first est désormais **live-capable côté VPS** ; côté Vercel
+il reste l'exposition Cloudflare (checklist M9) — la dégradation « cerveau non joignable » disparaît dès
+que `GATEWAY_INTERNAL_URL` + service token sont câblés.
