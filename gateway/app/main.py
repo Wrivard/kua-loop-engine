@@ -433,6 +433,40 @@ async def internal_debug_act(request: Request, background: BackgroundTasks) -> J
     return JSONResponse(content=out)
 
 
+# --------------------------------------------------- Cerveau Küa (chat-first) ---
+# POST /internal/agent/propose : trie un message opérateur → AgentProposal (claude -p Max).
+# Bearer INTERNAL_TOKEN. Le texte est une REQUÊTE à trier, jamais des instructions à exécuter.
+
+
+@app.post("/internal/agent/propose")
+async def internal_agent_propose(request: Request) -> JSONResponse:
+    if (err := _internal_guard(request)) is not None:
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"status": "invalid_json"})
+    message = str((body or {}).get("message", "")).strip()
+    if not message:
+        return JSONResponse(status_code=400, content={"status": "missing_message"})
+    history = body.get("history") if isinstance(body.get("history"), list) else []
+    project_id = body.get("project_id") if isinstance(body.get("project_id"), str) else None
+    source = str(body.get("source") or "ui")
+    user = _audit_user(request)
+
+    from app import agent_brain  # noqa: PLC0415
+
+    try:
+        proposal = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: agent_brain.propose(message, history, project_id, source)
+        )
+    except agent_brain.BrainError as exc:
+        log_json("agent_propose_failed", user=user, source=source, error=str(exc))
+        return JSONResponse(status_code=502, content={"status": "brain_error", "message": str(exc)})
+    log_json("agent_propose", user=user, source=source, action=proposal["action"], facade=proposal["facade"])
+    return JSONResponse(content={"status": "ok", "proposal": proposal})
+
+
 @app.post("/hooks/sentry/{project_id}")
 async def sentry_hook(project_id: str, request: Request) -> JSONResponse:
     raw_body = await request.body()
