@@ -1,0 +1,2 @@
+# Agent de façade + bot Discord. kua_core (DB) est partagé via le venv du repo.
+discord.py>=2.3,<3

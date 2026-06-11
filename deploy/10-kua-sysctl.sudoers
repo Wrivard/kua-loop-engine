@@ -17,6 +17,7 @@
 Cmnd_Alias KUA_SYSCTL = \
   /usr/bin/systemctl start kua-gateway,   /usr/bin/systemctl stop kua-gateway,   /usr/bin/systemctl restart kua-gateway,   /usr/bin/systemctl status kua-gateway, \
   /usr/bin/systemctl start kua-worker,    /usr/bin/systemctl stop kua-worker,    /usr/bin/systemctl restart kua-worker,    /usr/bin/systemctl status kua-worker, \
-  /usr/bin/systemctl start kua-mcp-bridge, /usr/bin/systemctl stop kua-mcp-bridge, /usr/bin/systemctl restart kua-mcp-bridge, /usr/bin/systemctl status kua-mcp-bridge
+  /usr/bin/systemctl start kua-mcp-bridge, /usr/bin/systemctl stop kua-mcp-bridge, /usr/bin/systemctl restart kua-mcp-bridge, /usr/bin/systemctl status kua-mcp-bridge, \
+  /usr/bin/systemctl start kua-discord,   /usr/bin/systemctl stop kua-discord,   /usr/bin/systemctl restart kua-discord,   /usr/bin/systemctl status kua-discord
 
 kua-engine ALL=(root) NOPASSWD: KUA_SYSCTL

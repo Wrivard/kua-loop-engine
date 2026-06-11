@@ -20,7 +20,7 @@ import os
 import subprocess
 from typing import Any
 
-ALLOWED_SERVICES: tuple[str, ...] = ("kua-gateway", "kua-worker", "kua-mcp-bridge")
+ALLOWED_SERVICES: tuple[str, ...] = ("kua-gateway", "kua-worker", "kua-mcp-bridge", "kua-discord")
 CONTROL_ACTIONS: tuple[str, ...] = ("start", "stop", "restart", "status")
 
 # Dépendances réinstallables : specs ÉPINGLÉES (réversibles). À étendre au besoin.

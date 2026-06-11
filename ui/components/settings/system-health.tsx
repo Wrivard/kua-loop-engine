@@ -29,10 +29,11 @@ function fmtUptime(s?: number): string {
 }
 
 type HealthKey = keyof NonNullable<HealthStatus["services"]>;
-const ROWS: { service?: string; healthKey: HealthKey; label: string }[] = [
+const ROWS: { service?: string; healthKey?: HealthKey; label: string }[] = [
   { service: "kua-gateway", healthKey: "gateway", label: "Gateway" },
   { service: "kua-worker", healthKey: "worker", label: "Worker" },
   { service: "kua-mcp-bridge", healthKey: "mcp_bridge", label: "Bridge MCP" },
+  { service: "kua-discord", label: "Bot Discord" }, // contrôle seulement (/health ne le suit pas)
   { healthKey: "db", label: "Base de données" },
 ];
 
@@ -140,9 +141,9 @@ export function SystemHealth() {
           </div>
           <div className="divide-y divide-border">
             {ROWS.map((row) => {
-              const s = svc?.[row.healthKey];
+              const s = row.healthKey ? svc?.[row.healthKey] : undefined;
               return (
-                <div key={row.healthKey} className="flex items-center justify-between gap-2 py-2">
+                <div key={row.service ?? row.healthKey} className="flex items-center justify-between gap-2 py-2">
                   <span className="flex items-center gap-2 text-sm">
                     <Dot up={s?.up} />
                     {row.label}
