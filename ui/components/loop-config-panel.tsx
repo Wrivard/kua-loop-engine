@@ -31,13 +31,19 @@ export function LoopConfigPanel({ loop, trigger }: { loop: Loop; trigger: ReactN
   const [trig, setTrig] = useState<string>(
     (loop.config?.trigger as string) || (loop.schedule_cron ? "cron" : "manual"),
   );
+  const [sched, setSched] = useState<string>(loop.schedule_cron ?? "");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
   async function save() {
     setSaving(true);
     try {
-      await updateLoop(loop.id, { budget_usd: Number(budget) || Number(loop.budget_usd), model, autonomy });
+      await updateLoop(loop.id, {
+        budget_usd: Number(budget) || Number(loop.budget_usd),
+        model,
+        autonomy,
+        schedule: trig === "cron" ? sched.trim() : "", // cron seulement si déclencheur = cron
+      });
       await updateLoopTrigger(loop.id, trig);
       setDone(true);
       setTimeout(() => {
@@ -133,9 +139,24 @@ export function LoopConfigPanel({ loop, trigger }: { loop: Loop; trigger: ReactN
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              UI seulement — les déclencheurs réels (cron / discord / sentry) ne sont pas encore branchés.
-            </p>
+            {trig === "cron" ? (
+              <div className="space-y-1">
+                <Input
+                  value={sched}
+                  onChange={(e) => setSched(e.target.value)}
+                  placeholder="0 9 * * 1   (min h jour mois jsem)"
+                  aria-label="Expression cron"
+                  className="font-mono text-xs"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Le cron <strong>PROPOSE</strong> dans l'inbox à l'heure dite (jamais un run direct) — tu approuves.
+                </p>
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                discord / sentry : UI seulement pour l'instant (webhooks réels = fondation prête).
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end gap-2">

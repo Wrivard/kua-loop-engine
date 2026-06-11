@@ -623,8 +623,10 @@ def update_loop_fields(
     budget_usd: Optional[float] = None,
     model: Optional[str] = None,
     autonomy: Optional[str] = None,
+    schedule: Optional[str] = None,
 ) -> None:
-    """Maj de champs whitelistés. `autonomy='auto'` est IGNORÉ (jamais activé par le chat)."""
+    """Maj de champs whitelistés. `autonomy='auto'` est IGNORÉ (jamais activé par le chat).
+    `schedule=''` efface le cron (null) ; une chaîne le définit."""
     from psycopg import sql  # noqa: PLC0415
 
     sets: list[Any] = []
@@ -638,6 +640,9 @@ def update_loop_fields(
     if autonomy in ("manual", "approve_final"):  # 'auto' exclu volontairement
         sets.append(sql.SQL("autonomy = %s"))
         params.append(autonomy)
+    if schedule is not None:
+        sets.append(sql.SQL("schedule_cron = %s"))
+        params.append(schedule or None)
     if not sets:
         return
     query = sql.SQL("UPDATE loops SET {} WHERE id = %s").format(sql.SQL(", ").join(sets))
@@ -645,6 +650,27 @@ def update_loop_fields(
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute(query, params)
+
+
+def loops_with_schedule() -> list[dict[str, Any]]:
+    """Loops activées avec un cron (scheduler M17)."""
+    from psycopg.rows import dict_row  # noqa: PLC0415
+
+    with connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT * FROM loops WHERE enabled = true AND schedule_cron IS NOT NULL AND schedule_cron <> ''")
+            return cur.fetchall()
+
+
+def set_loop_cron_fired(loop_id: str, iso: str) -> None:
+    """Mémorise la dernière occurrence cron tirée (loops.config.last_cron_fired)."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE loops SET config = jsonb_set(coalesce(config, '{}'::jsonb), "
+                "'{last_cron_fired}', to_jsonb(%s::text)) WHERE id = %s",
+                (iso, loop_id),
+            )
 
 
 def create_notification(kind: str, title: str, body: Optional[str] = None, link: Optional[str] = None) -> str:

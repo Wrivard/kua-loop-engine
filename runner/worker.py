@@ -57,6 +57,22 @@ def _heartbeat_loop(pid: int) -> None:
         time.sleep(HEARTBEAT_SEC)
 
 
+SCHEDULER_SEC = float(os.environ.get("KUA_SCHEDULER_SEC", "60"))
+
+
+def _scheduler_loop() -> None:
+    """Thread daemon : cron PROPOSE-ONLY (M17) — fabrique des propositions dans l'inbox aux
+    heures dites, JAMAIS un run direct. allow_auto reste FALSE."""
+    from runner import scheduler  # noqa: PLC0415
+
+    while True:
+        try:
+            scheduler.tick(datetime.now(timezone.utc))
+        except Exception:
+            logger.exception("kua: scheduler cron a échoué")
+        time.sleep(SCHEDULER_SEC)
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -434,6 +450,7 @@ def run_worker(*, once: bool = False, poll_interval: float = 5.0, executor: Opti
         threading.Thread(
             target=_heartbeat_loop, args=(os.getpid(),), daemon=True, name="kua-heartbeat"
         ).start()
+        threading.Thread(target=_scheduler_loop, daemon=True, name="kua-scheduler").start()
     was_paused = False
     while True:
         try:

@@ -1,3 +1,4 @@
 # Le Runner s'installe via le pyproject.toml racine (pip install -e .).
 # Dépendances additionnelles propres au Runner :
 PyYAML>=6,<7        # lecture de .kua/loops.yaml (kua sync)
+croniter>=2,<6

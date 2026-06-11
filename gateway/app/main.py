@@ -532,7 +532,10 @@ async def internal_agent_act(request: Request) -> JSONResponse:
             budget = float(patch.get("budget_usd")) if patch.get("budget_usd") is not None else None
         except (TypeError, ValueError):
             budget = None
-        core_db.update_loop_fields(loop_id, budget_usd=budget, model=patch.get("model"), autonomy=patch.get("autonomy"))
+        core_db.update_loop_fields(
+            loop_id, budget_usd=budget, model=patch.get("model"),
+            autonomy=patch.get("autonomy"), schedule=patch.get("schedule"),
+        )
     elif action == "pause_loop":
         core_db.set_loop_enabled(loop_id, False)
     elif action == "resume_loop":

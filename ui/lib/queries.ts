@@ -315,7 +315,7 @@ export async function createLoop(
  *  (défense en profondeur ; l'allowlist serveur /api/agent/act est la garde principale). */
 export async function updateLoop(
   loopId: string,
-  patch: { budget_usd?: number; model?: string; autonomy?: Autonomy; enabled?: boolean },
+  patch: { budget_usd?: number; model?: string; autonomy?: Autonomy; enabled?: boolean; schedule?: string },
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
   const clean: Record<string, unknown> = {};
@@ -323,6 +323,7 @@ export async function updateLoop(
   if (patch.model) clean.model = patch.model;
   if (patch.autonomy && patch.autonomy !== "auto") clean.autonomy = patch.autonomy;
   if (patch.enabled != null) clean.enabled = patch.enabled;
+  if (patch.schedule !== undefined) clean.schedule_cron = patch.schedule || null;
   if (Object.keys(clean).length === 0) return;
   const { error } = await supabase.from("loops").update(clean).eq("id", loopId);
   if (error) throw error;
