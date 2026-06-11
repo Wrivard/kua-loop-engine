@@ -280,6 +280,50 @@ export async function updateLoopModel(loopId: string, model: string): Promise<vo
   if (error) throw error;
 }
 
+/** Crée/arme une loop (project_id, facade) avec des défauts SÛRS : approve_final, jamais auto.
+ *  `allow_auto` vit sur projects (reste false) — non touché ici. Retourne l'id, ou null en preview. */
+export async function createLoop(
+  projectId: string,
+  facade: string,
+  opts: { budget_usd?: number; model?: string } = {},
+): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase
+    .from("loops")
+    .upsert(
+      {
+        project_id: projectId,
+        facade,
+        enabled: true,
+        autonomy: "approve_final", // JAMAIS auto à la création
+        budget_usd: opts.budget_usd ?? 5,
+        model: opts.model ?? "sonnet",
+      },
+      { onConflict: "project_id,facade" },
+    )
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+/** Met à jour des champs d'une loop (M4 chat / M5 panneau). `autonomy="auto"` REFUSÉ ici aussi
+ *  (défense en profondeur ; l'allowlist serveur /api/agent/act est la garde principale). */
+export async function updateLoop(
+  loopId: string,
+  patch: { budget_usd?: number; model?: string; autonomy?: Autonomy; enabled?: boolean },
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const clean: Record<string, unknown> = {};
+  if (patch.budget_usd != null) clean.budget_usd = patch.budget_usd;
+  if (patch.model) clean.model = patch.model;
+  if (patch.autonomy && patch.autonomy !== "auto") clean.autonomy = patch.autonomy;
+  if (patch.enabled != null) clean.enabled = patch.enabled;
+  if (Object.keys(clean).length === 0) return;
+  const { error } = await supabase.from("loops").update(clean).eq("id", loopId);
+  if (error) throw error;
+}
+
 // --- Système (pause moteur) — écrit DIRECTEMENT via Supabase (marche sans la gateway) ---
 
 /** Réglages système (singleton id=1). null en preview. */

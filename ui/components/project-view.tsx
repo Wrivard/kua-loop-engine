@@ -7,6 +7,7 @@ import { EmptyState, ErrorState } from "@/components/empty-state";
 import { FacadeDot } from "@/components/facade-mark";
 import { AutonomyPopover } from "@/components/autonomy-popover";
 import { NewConversationDialog } from "@/components/new-conversation-dialog";
+import { BrainChatDialog } from "@/components/brain-chat-dialog";
 import { ProjectSettingsDrawer } from "@/components/project-settings-drawer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -146,6 +147,14 @@ export function ProjectView({ slug }: { slug: string }) {
                 <SlidersHorizontal className="h-4 w-4" />
               </Button>
             }
+          />
+          <BrainChatDialog
+            trigger={<Button size="sm">+ Nouveau</Button>}
+            title="Nouveau — via l'assistant"
+            description="Décris ce que tu veux ; l'assistant propose, tu confirmes."
+            source="ui"
+            projectId={project.id}
+            greeting={`On est sur ${project.name}. Qu'est-ce qu'on fait ? (un bug, une modif, une démo, un nouveau loop…)`}
           />
           <NewConversationDialog projectId={project.id} loops={loops} />
         </div>

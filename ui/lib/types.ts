@@ -196,6 +196,46 @@ export interface LoopWithProject extends Loop {
   project_name: string;
 }
 
+/** Action proposée par le cerveau (chat-first). Allowlist stricte côté serveur. */
+export type AgentAction =
+  | "create_thread"
+  | "create_loop"
+  | "update_loop"
+  | "pause_loop"
+  | "resume_loop"
+  | "none";
+
+/** Proposition structurée du cerveau (voir BUILD-NOTES § CHAT-FIRST). */
+export interface AgentProposal {
+  action: AgentAction;
+  facade: string; // general | bugfix | discord | demo | finish | seo
+  loop_id: string | null;
+  title: string;
+  goal: string;
+  budget_usd: number;
+  priority: "low" | "normal" | "high";
+  questions_manquantes: string[];
+  resume_humain: string;
+}
+
+/** Session de chat persistée (accueil chat-first, migration 007). */
+export interface ChatSession {
+  id: string;
+  user_email: string | null;
+  title: string | null;
+  created_at: string;
+}
+
+/** Message d'une session de chat (user | brain | system) + proposition éventuelle. */
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: "user" | "brain" | "system";
+  content: string;
+  proposal: AgentProposal | null;
+  created_at: string;
+}
+
 /** Réglages système (singleton id=1) — pause moteur + heartbeat worker (migration 006). */
 export interface SystemSettings {
   id: number;
