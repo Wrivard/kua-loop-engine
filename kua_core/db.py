@@ -152,6 +152,7 @@ GET_RUN_CONTEXT_SQL = """
       r.id AS run_id, r.status AS run_status, r.goal AS goal, r.thread_id,
       r.branch AS branch, r.pr_url AS pr_url, r.delivered_sha AS delivered_sha,
       r.verify_status AS verify_status, r.verify_command AS verify_command, r.verify_output AS verify_output,
+      r.cost_usd AS cost_usd, r.summary AS summary, r.iterations AS iterations,
       t.facade AS facade, t.subject AS subject, t.project_id AS project_id,
       t.loop_id AS loop_id, t.status AS thread_status,
       p.name AS project_name, p.repo_url AS repo_url,

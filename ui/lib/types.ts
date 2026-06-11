@@ -236,6 +236,45 @@ export interface ChatMessage {
   created_at: string;
 }
 
+/** Un fichier dans le diff d'une PR (M13). */
+export interface PrFile {
+  filename: string;
+  status: string;
+  additions: number | null;
+  deletions: number | null;
+  patch: string;
+}
+
+/** Détail d'une PR pour la revue dans l'app (M13). */
+export interface PrDetail {
+  status: string;
+  run?: {
+    status?: string;
+    cost_usd?: string | null;
+    iterations?: number | null;
+    summary?: string | null;
+    verify_status?: string | null;
+    verify_command?: string | null;
+    verify_output?: string | null;
+    branch?: string | null;
+  };
+  pr?: {
+    title?: string;
+    html_url?: string;
+    state?: string;
+    draft?: boolean;
+    merged?: boolean;
+    additions?: number | null;
+    deletions?: number | null;
+    changed_files?: number | null;
+    commits?: number | null;
+  } | null;
+  files?: PrFile[];
+  truncated?: boolean;
+  reachable?: boolean;
+  reason?: string;
+}
+
 /** Réglages système (singleton id=1) — pause moteur + heartbeat worker (migration 006). */
 export interface SystemSettings {
   id: number;

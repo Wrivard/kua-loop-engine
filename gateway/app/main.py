@@ -527,6 +527,40 @@ async def internal_agent_act(request: Request) -> JSONResponse:
     return JSONResponse(content={"status": "ok", "action": action, "before": _slim_loop(before), "after": _slim_loop(after)})
 
 
+# Détail d'une PR pour la revue dans l'app (M13) — diff/patch/commits via l'API GitHub (token VPS).
+@app.get("/internal/pr/{run_id}")
+async def internal_pr(run_id: str, request: Request) -> JSONResponse:
+    if (err := _internal_guard(request)) is not None:
+        return err
+    from kua_core import db as core_db  # noqa: PLC0415
+
+    ctx = core_db.get_run_context(run_id)
+    if not ctx:
+        return JSONResponse(status_code=404, content={"status": "run_not_found"})
+    run_info = {
+        "status": ctx.get("run_status"),
+        "cost_usd": str(ctx.get("cost_usd")) if ctx.get("cost_usd") is not None else None,
+        "iterations": ctx.get("iterations"),
+        "summary": ctx.get("summary"),
+        "verify_status": ctx.get("verify_status"),
+        "verify_command": ctx.get("verify_command"),
+        "verify_output": (ctx.get("verify_output") or "")[-6000:],
+        "branch": ctx.get("branch"),
+    }
+    pr_url = ctx.get("pr_url")
+    if not pr_url:
+        return JSONResponse(content={"status": "ok", "run": run_info, "pr": None, "files": []})
+
+    from app import pr_review  # noqa: PLC0415
+
+    try:
+        detail = await asyncio.get_event_loop().run_in_executor(None, pr_review.pr_detail, pr_url)
+    except Exception as exc:  # noqa: BLE001
+        log_json("pr_detail_failed", run_id=run_id, error=str(exc))
+        return JSONResponse(status_code=502, content={"status": "pr_error", "error": str(exc), "run": run_info})
+    return JSONResponse(content={"status": "ok", "run": run_info, **detail})
+
+
 @app.post("/hooks/sentry/{project_id}")
 async def sentry_hook(project_id: str, request: Request) -> JSONResponse:
     raw_body = await request.body()

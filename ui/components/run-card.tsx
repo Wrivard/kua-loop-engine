@@ -5,7 +5,9 @@ import { ExternalLink, GitPullRequest } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/status-pill";
 import { ApprovalActions } from "@/components/approval-actions";
+import { PrReview } from "@/components/pr-review";
 import { RunDetailsDrawer } from "@/components/run-details-drawer";
+import { Button } from "@/components/ui/button";
 import { statusOf } from "@/lib/facade";
 import { formatCost } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -112,7 +114,21 @@ export function RunCard({
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div className={cn("flex items-center gap-3", !awaiting && "min-h-[2rem]")}>
             {awaiting ? (
-              <ApprovalActions runId={run.id} onDecided={handleDecided} />
+              <div className="flex items-center gap-2">
+                {run.pr_url && (
+                  <PrReview
+                    runId={run.id}
+                    onDecided={handleDecided}
+                    trigger={
+                      <Button size="sm" variant="outline">
+                        <GitPullRequest className="h-4 w-4" />
+                        Revue
+                      </Button>
+                    }
+                  />
+                )}
+                <ApprovalActions runId={run.id} onDecided={handleDecided} />
+              </div>
             ) : (
               <StatusNote status={status} />
             )}
