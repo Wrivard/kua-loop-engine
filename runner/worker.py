@@ -176,11 +176,16 @@ def process_run(
         if gitops.commits_ahead(checkout, target.base_branch) == 0:
             return _fail(ctx, "failed", "Aucun changement produit par le run.", log_path)
 
-        # --- VERIFY gate ---
+        # --- VERIFY gate : rapport TOUJOURS attaché au run ; bloquant SEULEMENT si verify_mode=block.
+        # Défaut 'report' (non bloquant) → la carte d'approbation montre le rouge/vert, l'humain décide.
         db.update_run(run_id, status="verifying")
         vr = run_verify_gate(checkout)
-        if vr.status == "failed":
-            return _fail(ctx, "failed", f"Gate de vérif échouée ({vr.command}).", log_path)
+        try:
+            db.set_verify_report(run_id, vr.status, vr.command, vr.output)
+        except Exception:
+            logger.exception("kua: set_verify_report a échoué run_id=%s", run_id)
+        if ctx.verify_mode == "block" and vr.status == "failed":
+            return _fail(ctx, "failed", f"Gate de vérif échouée ({vr.command}) — mode block.", log_path)
 
         # --- DELIVER (push branche + PR draft) ; pin du SHA reviewé (anti-TOCTOU) ---
         delivered_sha = gitops.head_sha(checkout)

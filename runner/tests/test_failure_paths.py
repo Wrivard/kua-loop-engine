@@ -30,7 +30,7 @@ def _db_reachable() -> bool:
 requires_db = pytest.mark.skipif(not _db_reachable(), reason="DB injoignable — test sauté")
 
 
-def _setup(verify_exit: int = 0):
+def _setup(verify_exit: int = 0, verify_mode: str = "block"):
     pid = f"kua-failtest-{uuid.uuid4().hex[:8]}"
     work = Path(tempfile.mkdtemp(prefix="kua-failtest-"))
     bare = work / "origin.git"
@@ -49,9 +49,9 @@ def _setup(verify_exit: int = 0):
                 (pid, str(bare)),
             )
             cur.execute(
-                "INSERT INTO loops (project_id, facade, enabled, autonomy, budget_usd) "
-                "VALUES (%s, 'general', true, 'approve_final', 5) RETURNING id",
-                (pid,),
+                "INSERT INTO loops (project_id, facade, enabled, autonomy, budget_usd, verify_mode) "
+                "VALUES (%s, 'general', true, 'approve_final', 5, %s) RETURNING id",
+                (pid, verify_mode),
             )
             loop_id = str(cur.fetchone()[0])
     thread_id, run_id = db.create_thread_with_run(pid, loop_id, "general", "Fail test", None, "fais X")
@@ -92,8 +92,8 @@ def test_run_failure_delivers_nothing(status):
 
 
 @requires_db
-def test_verify_failure_delivers_nothing():
-    pid, _tid, run_id, bare, work = _setup(verify_exit=1)  # la gate de vérif échoue
+def test_verify_failure_block_mode_delivers_nothing():
+    pid, _tid, run_id, bare, work = _setup(verify_exit=1, verify_mode="block")  # vérif échoue + block
     try:
         rep = worker.process_run(
             run_id,
@@ -104,5 +104,24 @@ def test_verify_failure_delivers_nothing():
         assert rep["status"] == "failed"
         assert db.get_run_context(run_id)["run_status"] == "failed"
         assert "kua/" not in _heads(bare)
+    finally:
+        _cleanup(pid, work)
+
+
+@requires_db
+def test_verify_failure_report_mode_delivers_with_report():
+    # Mode 'report' (défaut) : vérif rouge → on LIVRE quand même (PR), rapport attaché au run.
+    pid, _tid, run_id, bare, work = _setup(verify_exit=1, verify_mode="report")
+    try:
+        rep = worker.process_run(
+            run_id,
+            executor=FakeExecutor(),
+            deliverer=LocalBareDeliverer(),
+            checkouts_dir=str(work / "checkouts"),
+        )
+        assert rep["status"] == "awaiting_approval"  # livré malgré la vérif rouge
+        assert "kua/" in _heads(bare)  # branche poussée
+        ctx = db.get_run_context(run_id)
+        assert ctx["verify_status"] == "failed"  # rapport attaché (affiché dans la carte)
     finally:
         _cleanup(pid, work)

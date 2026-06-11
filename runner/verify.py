@@ -50,14 +50,14 @@ def run_verify_gate(cwd: Path | str, timeout_s: int = 900) -> VerifyResult:
         rc, out = _run_cmd(["bash", str(script)], cwd, timeout_s)
         return VerifyResult("passed" if rc == 0 else "failed", ".kua/verify.sh", out)
 
-    # 2) Node : npm run build (+ test si présent).
+    # 2) Node : npm run lint/build/test (ceux présents dans package.json).
     pkg = cwd / "package.json"
     if pkg.exists():
         try:
             scripts = json.loads(pkg.read_text(encoding="utf-8")).get("scripts", {})
         except Exception:
             scripts = {}
-        cmds = [f"npm run {s}" for s in ("build", "test") if s in scripts]
+        cmds = [f"npm run {s}" for s in ("lint", "build", "test") if s in scripts]
         if cmds:
             if not (cwd / "node_modules").exists():
                 _run_cmd("npm install", cwd, timeout_s)

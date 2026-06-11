@@ -151,13 +151,15 @@ GET_RUN_CONTEXT_SQL = """
     SELECT
       r.id AS run_id, r.status AS run_status, r.goal AS goal, r.thread_id,
       r.branch AS branch, r.pr_url AS pr_url, r.delivered_sha AS delivered_sha,
+      r.verify_status AS verify_status, r.verify_command AS verify_command, r.verify_output AS verify_output,
       t.facade AS facade, t.subject AS subject, t.project_id AS project_id,
       t.loop_id AS loop_id, t.status AS thread_status,
       p.name AS project_name, p.repo_url AS repo_url,
       p.default_branch AS default_branch, p.is_engine AS is_engine,
       p.allow_auto AS allow_auto, p.workspace AS workspace,
       l.autonomy AS autonomy, l.budget_usd AS budget_usd, l.model AS model,
-      l.timeout_min AS timeout_min, l.max_iterations AS max_iterations, l.config AS config
+      l.timeout_min AS timeout_min, l.max_iterations AS max_iterations, l.config AS config,
+      l.verify_mode AS verify_mode
     FROM runs r
     JOIN threads t  ON t.id = r.thread_id
     JOIN projects p ON p.id = t.project_id
@@ -227,6 +229,16 @@ def update_run(run_id: str, **fields: Any) -> None:
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute(query, params)
+
+
+def set_verify_report(run_id: str, status: str, command: Optional[str], output: Optional[str]) -> None:
+    """Attache le rapport de la verify gate au run (M14 — affiché dans la carte d'approbation)."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE runs SET verify_status=%s, verify_command=%s, verify_output=%s WHERE id=%s",
+                (status, command, (output or "")[-8000:], run_id),
+            )
 
 
 def add_run(thread_id: str, goal: str) -> str:
