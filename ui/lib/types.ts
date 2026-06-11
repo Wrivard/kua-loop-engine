@@ -218,6 +218,17 @@ export interface AgentProposal {
   resume_humain: string;
 }
 
+/** Un run dans le dashboard activité (M19). */
+export interface ActivityRun {
+  id: string;
+  status: string;
+  cost_usd: number | string | null;
+  created_at: string;
+  pr_url: string | null;
+  facade: string;
+  subject: string | null;
+}
+
 /** Notification (cloche app — migration 011). */
 export interface Notification {
   id: string;

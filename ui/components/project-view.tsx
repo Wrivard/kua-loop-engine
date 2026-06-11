@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight, SlidersHorizontal } from "lucide-react";
+import { BarChart3, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { ThreadRow } from "@/components/thread-row";
 import { EmptyState, ErrorState } from "@/components/empty-state";
 import { FacadeDot } from "@/components/facade-mark";
@@ -9,6 +9,7 @@ import { AutonomyPopover } from "@/components/autonomy-popover";
 import { NewConversationDialog } from "@/components/new-conversation-dialog";
 import { BrainChatDialog } from "@/components/brain-chat-dialog";
 import { LoopConfigPanel } from "@/components/loop-config-panel";
+import { CostDashboard } from "@/components/cost-dashboard";
 import { ProjectSettingsDrawer } from "@/components/project-settings-drawer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -141,6 +142,15 @@ export function ProjectView({ slug }: { slug: string }) {
           </FilterChip>
         ))}
         <div className="ml-auto flex items-center gap-2">
+          <CostDashboard
+            projectId={project.id}
+            projectName={project.name}
+            trigger={
+              <Button size="icon" variant="ghost" aria-label="Coûts & activité">
+                <BarChart3 className="h-4 w-4" />
+              </Button>
+            }
+          />
           <ProjectSettingsDrawer
             projectId={project.id}
             trigger={

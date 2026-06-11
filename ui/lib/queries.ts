@@ -32,6 +32,7 @@ import type {
   MessageWithRun,
   Notification,
   Plan,
+  ActivityRun,
   Project,
   ProjectConnector,
   ProjectMcp,
@@ -336,6 +337,42 @@ export async function updateLoopTrigger(loopId: string, trigger: string): Promis
   const config = { ...((data as { config?: Record<string, unknown> } | null)?.config ?? {}), trigger };
   const { error } = await supabase.from("loops").update({ config }).eq("id", loopId);
   if (error) throw error;
+}
+
+// --- Dashboard coûts & activité (M19) ---
+
+export async function getProjectActivity(projectId: string, limit = 60): Promise<ActivityRun[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("runs")
+    .select("id,status,cost_usd,created_at,pr_url,thread:threads!inner(facade,subject,project_id)")
+    .eq("thread.project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  type Row = {
+    id: string;
+    status: string;
+    cost_usd: number | string | null;
+    created_at: string;
+    pr_url: string | null;
+    thread: unknown; // Supabase type la relation en tableau ; au runtime c'est un objet (to-one).
+  };
+  return ((data as Row[] | null) ?? []).map((r) => {
+    const t = (Array.isArray(r.thread) ? r.thread[0] : r.thread) as
+      | { facade?: string; subject?: string | null }
+      | null
+      | undefined;
+    return {
+      id: r.id,
+      status: r.status,
+      cost_usd: r.cost_usd,
+      created_at: r.created_at,
+      pr_url: r.pr_url,
+      facade: t?.facade ?? "general",
+      subject: t?.subject ?? null,
+    };
+  });
 }
 
 // --- Notifications (cloche app — migration 011) ---
