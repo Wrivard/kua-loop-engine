@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ProposalCard, type ConfirmedProposal } from "@/components/proposal-card";
+import { Expandable } from "@/components/expandable";
 import { getProjects } from "@/lib/queries";
 import { applyProposal } from "@/lib/apply-proposal";
+import { Markdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import type { AgentProposal, ChatMessage, Project } from "@/lib/types";
 
@@ -97,7 +99,7 @@ export function BrainChat({
       const p: AgentProposal = data.proposal;
       if (p.resume_humain) add({ id: uid(), kind: "text", role: "brain", text: p.resume_humain });
       if (p.questions_manquantes?.length) {
-        add({ id: uid(), kind: "text", role: "brain", text: p.questions_manquantes.map((q) => `• ${q}`).join("\n") });
+        add({ id: uid(), kind: "text", role: "brain", text: p.questions_manquantes.map((q) => `- ${q}`).join("\n") });
       } else if (p.action !== "none") {
         add({ id: uid(), kind: "proposal", proposal: p });
       }
@@ -159,7 +161,7 @@ export function BrainChat({
             <Bubble key={t.id} role={t.role} text={t.text} />
           ),
         )}
-        {thinking && <Bubble role="brain" text="…" />}
+        {thinking && <Thinking />}
         <div ref={endRef} />
       </div>
       <form
@@ -192,19 +194,47 @@ export function BrainChat({
 }
 
 function Bubble({ role, text }: { role: string; text: string }) {
+  // Événement / système : ligne fine centrée (pas une bulle).
+  if (role === "system") {
+    return (
+      <div className="flex items-center gap-3 py-0.5 text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        <span className="shrink-0 text-center text-[11px]">{text}</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+    );
+  }
+  if (role === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-2xl bg-secondary px-3.5 py-2 text-sm leading-relaxed text-secondary-foreground">
+          {text}
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className={cn("flex", role === "user" ? "justify-end" : "justify-start")}>
-      <div
-        className={cn(
-          "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm",
-          role === "user"
-            ? "bg-brand/10 text-foreground"
-            : role === "system"
-              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-              : "border border-border bg-card text-foreground",
-        )}
-      >
-        {text}
+    <div className="flex justify-start">
+      <div className="max-w-[88%] rounded-2xl rounded-tl-sm border border-border bg-card px-3.5 py-2.5">
+        <Expandable collapsedHeight={200} fadeClass="from-card">
+          <Markdown>{text}</Markdown>
+        </Expandable>
+      </div>
+    </div>
+  );
+}
+
+/** Indicateur « le cerveau réfléchit… » (remplace la bulle « … »). */
+function Thinking() {
+  return (
+    <div className="flex justify-start">
+      <div className="inline-flex items-center gap-2 rounded-2xl rounded-tl-sm border border-border bg-card px-3.5 py-2.5 text-sm text-muted-foreground">
+        <span className="flex gap-1" aria-hidden>
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" />
+        </span>
+        le cerveau réfléchit…
       </div>
     </div>
   );

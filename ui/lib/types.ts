@@ -104,6 +104,9 @@ export interface RunRow {
   iterations: number | null;
   log_path: string | null;
   summary: string | null;
+  verify_status?: string | null;
+  verify_command?: string | null;
+  verify_output?: string | null;
   started_at: string | null;
   finished_at: string | null;
   created_at: string;
