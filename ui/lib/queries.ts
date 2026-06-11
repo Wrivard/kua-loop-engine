@@ -326,6 +326,15 @@ export async function updateLoop(
   if (error) throw error;
 }
 
+/** Persiste le déclencheur choisi dans loops.config (UI seulement — pas encore branché). */
+export async function updateLoopTrigger(loopId: string, trigger: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { data } = await supabase.from("loops").select("config").eq("id", loopId).maybeSingle();
+  const config = { ...((data as { config?: Record<string, unknown> } | null)?.config ?? {}), trigger };
+  const { error } = await supabase.from("loops").update({ config }).eq("id", loopId);
+  if (error) throw error;
+}
+
 // --- Chat-first : sessions + messages (accueil conversationnel, migration 007) ---
 
 /** Dernière session de chat de l'utilisateur, sinon en crée une. null en preview. */

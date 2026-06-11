@@ -8,6 +8,7 @@ import { FacadeDot } from "@/components/facade-mark";
 import { AutonomyPopover } from "@/components/autonomy-popover";
 import { NewConversationDialog } from "@/components/new-conversation-dialog";
 import { BrainChatDialog } from "@/components/brain-chat-dialog";
+import { LoopConfigPanel } from "@/components/loop-config-panel";
 import { ProjectSettingsDrawer } from "@/components/project-settings-drawer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -164,8 +165,16 @@ export function ProjectView({ slug }: { slug: string }) {
       {selectedLoop && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
           <span className="text-muted-foreground">Autonomie · {facadeLabel(filter as Facade)}</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1.5">
             <AutonomyPopover loop={selectedLoop} allowAuto={!project.is_engine} />
+            <LoopConfigPanel
+              loop={selectedLoop}
+              trigger={
+                <Button size="icon" variant="ghost" aria-label="Config du loop">
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+              }
+            />
           </div>
         </div>
       )}
