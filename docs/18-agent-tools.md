@@ -108,7 +108,30 @@ aucun secret ne transite par un tool.
    le profil `brain` (lectures) ; debug/wizard/discord = profils respectifs (Discord reste mocké).
    UI : aucune nouvelle surface — carte de run mutée (v2), propositions, toasts existants.
 
+## Preuve réelle (2026-06-11, kua-cobaye-test — LE cas vécu)
+1. Run v1 livré → **PR draft #5**, `awaiting_approval` (0,23 $).
+2. Message utilisateur « remplace plutôt par CHANGELOG: kua-ops OK » pendant le run à confirmer →
+   **l'agent de thread outillé appelle `redo_run` LUI-MÊME** (audit kua-ops :
+   `tool=redo_run ok=true actor=thread-agent`, approval `redo` avec la nuance exacte) et répond
+   « Redo queued… » dans le fil.
+3. Le watcher (worker **live**) rejette v1 + crée v2 avec la nuance → **PR draft #6**,
+   `awaiting_approval`. **Aucun merge.** Chaque run ≤ 0,50 $.
+
+**Leçon encodée** : haiku « confirmait » sans appeler le tool (1re tentative) → modèle de l'agent
+de thread = **sonnet (mid, doc 16)** + clause ANTI-FABRICATION dans le prompt (« pas de tool
+appelé = pas d'action annoncée »). Le cerveau (tri/lectures) reste haiku.
+
+## Activation live
+- Agent de thread outillé : **opt-in `KUA_AGENT_LLM=1`** dans l'env du worker (à ajouter par
+  William dans `/srv/kua/.env` — hors de portée de l'agent). Sans flag : fallback Phase-1.
+- Cerveau outillé (lectures) : **actif par défaut** (`KUA_BRAIN_TOOLS=0` pour désactiver) ;
+  idem advisor debug (`KUA_DEBUG_TOOLS=0`).
+- Après tout déploiement : `sudo -n systemctl restart kua-gateway` puis `… kua-worker`
+  (une commande PAR service — le sudoers n'autorise que les commandes exactes).
+- Audit des tools : `~/.kua/ops-audit.jsonl` (JSONL : session/profil/projet/tool/ok/durée).
+
 ## Reste-à-faire (hors phase)
 Profil `auto_facade` (double flag) ; persistance du `pending` Discord (table proposals) ;
 `adjust_run` (modifier budget/modèle d'un run à confirmer) ; reads par rôle côté RLS si on expose
-au-delà du VPS ; migration complète du debug advisor vers kua-ops (cette phase : profil + audit).
+au-delà du VPS ; migration complète du debug advisor vers kua-ops (cette phase : profil + audit) ;
+brancher le profil `discord` quand le bot passe live.

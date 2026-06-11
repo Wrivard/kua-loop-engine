@@ -570,3 +570,19 @@ point brand pulsé) ; chips hétéroclites → **baseline h-6 unifiée** (rect =
 
 **Règles pour le futur** : DESIGN-SYSTEM.md §7 — toute nouvelle feature reste dans les tokens ;
 une couleur/taille hors-système n'existe pas ; chercher le composant partagé avant d'en créer un.
+
+## KUA-OPS — DES MAINS AUX AGENTS (loop 2026-06-11, O1→O5)
+
+Le cas vécu (« l'agent répond : écris Refaire toi-même ») est mort. Livré : `docs/18-agent-tools.md`
+(audit 6 agents + matrice profils×tools), **`kua_core/ops.py`** (couche d'actions unique : lectures
+directes dont `get_costs` — l'agrégat qui manquait partout — ; mutations par les chemins atomiques
+existants : `redo_run`/`reject_run` = approvals→watcher, `create_thread` workspace-only ; zéro merge,
+zéro duplication), **serveur MCP `kua-ops`** (stdio zéro dépendance, profils brain/thread_agent/
+mcp_wizard/debug/discord fail-closed, scope projet/thread étanche, session éphémère, audit JSONL
+`~/.kua/ops-audit.jsonl`, timeouts), **câblage** : agent de thread = claude -p outillé (sonnet,
+anti-fabrication, opt-in `KUA_AGENT_LLM=1`, fallback Phase-1), cerveau + advisor debug = lectures
+(profil brain). UI inchangée. **Preuve réelle** : message avec nuance pendant un run à confirmer →
+l'agent fait `redo_run` LUI-MÊME (audité) → v1 rejetée, v2 avec la nuance → PR draft #6, stop
+awaiting_approval, aucun merge (PR #5/#6 draft non mergées). 197 pytest + 49 vitest + build + lint
+verts. Reste : `KUA_AGENT_LLM=1` dans /srv/kua/.env (toi), profil discord au passage live, tools
+façades auto (double flag, hors phase).

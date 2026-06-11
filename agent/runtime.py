@@ -29,7 +29,9 @@ _ROOT = Path(__file__).resolve().parent.parent
 _SERVER = _ROOT / "agent" / "kua_ops_mcp.py"
 _PYTHON = str(_ROOT / ".venv" / "bin" / "python")
 
-AGENT_MODEL = os.environ.get("KUA_AGENT_MODEL", "claude-haiku-4-5-20251001")
+# Mid-model (doc 16 : cheap/mid) : l'usage FIABLE des tools le justifie — haiku
+# « confirme » parfois une action sans avoir appelé le tool (constaté en preuve O5).
+AGENT_MODEL = os.environ.get("KUA_AGENT_MODEL", "claude-sonnet-4-6")
 AGENT_BUDGET = os.environ.get("KUA_AGENT_BUDGET_USD", "0.15")
 AGENT_TIMEOUT = int(os.environ.get("KUA_AGENT_TIMEOUT_S", "180"))
 
@@ -85,6 +87,9 @@ données (get_thread_context / get_run_status / get_costs), bref et précis.
 - Demande d'un NOUVEAU travail distinct → create_thread sur ce projet, et dis-le.
 - Ambigu / à ton initiative → ne mute RIEN : pose UNE question courte.
 - Jamais de merge, jamais d'autonomie auto. Tu réponds en français, sobre, 1-3 phrases.
+- ANTI-FABRICATION : tu ne dis JAMAIS qu'une action est faite sans avoir appelé le tool \
+correspondant DANS cette conversation et reçu un résultat sans erreur. Si l'appel échoue, \
+dis-le honnêtement. Pas de tool appelé = pas d'action annoncée.
 
 Ta réponse finale = LE message à poster dans le fil (pas de markdown lourd, pas de JSON)."""
 
