@@ -325,3 +325,68 @@ anti-zoom iOS ; coupe des URLs longues ; open-redirect du login ; aria-pressed/e
   persistées / pas de réponse. Fonctionnels dès Supabase + Runner câblés.
 - **Armement d'une façade neuve** (créer une ligne `loops`) : différé (cycle de vie / `loops.yaml` backend).
 - **RLS désactivé** : à durcir avant prod (hors scope UI).
+
+---
+
+# CHAT-FIRST (cerveau Max) — contrats & architecture
+
+> Loop de nuit (2026-06-11). L'app devient **chat-first** : le chat est l'interface par défaut
+> pour créer/gérer loops & threads, propulsé par **Claude via le plan Max** (`claude -p` sur le VPS,
+> derrière la gateway). **AUCUNE clé API Anthropic.** Le cerveau **PROPOSE**, l'humain **CONFIRME**
+> (carte de révision). `allow_auto` reste `FALSE` partout ; `approve_final` reste le gate de livraison.
+
+## (a) Contrat `AgentProposal` (sortie du cerveau, JSON strict)
+
+```jsonc
+{
+  "action": "create_thread | create_loop | update_loop | pause_loop | resume_loop | none",
+  "facade": "general | bugfix | discord | demo | finish | seo",  // clés système (discord = libellé « Modifs »)
+  "loop_id": "uuid|null",          // requis pour update/pause/resume_loop ; sinon null
+  "title": "string",                // titre court (nom du loop / sujet du thread)
+  "goal": "string",                 // goal exécutable et cadré (contexte repo, critères d'acceptation, limites)
+  "budget_usd": 5,                  // number > 0
+  "priority": "low | normal | high",
+  "questions_manquantes": ["string"], // si non vide : le chat pose CES questions, on n'invente pas
+  "resume_humain": "string"         // résumé FR lisible montré dans la carte de révision
+}
+```
+- Façades + couleurs : source de vérité `ui/lib/facade.ts` (`general` = neutre/brand ; bugfix #D85A30 ;
+  discord/« Modifs » #378ADD ; demo #7F77DD ; finish/« Site » #1D9E75 ; seo #BA7517).
+- Si des infos manquent → `questions_manquantes` rempli (action peut rester telle quelle, l'UI pose les
+  questions une par une) plutôt qu'inventer.
+- Hors-scope / bavardage → `action: "none"` + `resume_humain` explicatif.
+
+## (b) Protocole chat (messages → propositions → confirmation)
+
+1. L'utilisateur tape dans un chat (accueil global, ou chat de création loop/thread).
+2. L'UI `POST /api/agent/propose { message, history[], project_id?, source }` (route Next, auth Supabase +
+   admin) → **proxy** vers la gateway `POST /internal/agent/propose` (bearer INTERNAL_TOKEN + service token CF).
+3. La gateway lance le **cerveau** (`claude -p` Max) → renvoie **UNIQUEMENT** un `AgentProposal` validé par schéma.
+4. `questions_manquantes` non vide → l'UI affiche les questions (chat continue, une par une) ; pas de carte.
+5. `action != none` et plus de questions → l'UI affiche une **CARTE DE RÉVISION** (champs ÉDITABLES inline) +
+   boutons **Créer/Appliquer** · **Ajuster** (rouvre le chat) · **Annuler**.
+6. **Confirmation explicite (clic)** → l'UI exécute l'action :
+   - `create_thread` / `create_loop` → écritures Supabase (RLS authenticated) : `ensureLoop` + `createThread`
+     (le pipeline run existant prend le relais) ; nouveau loop = `approve_final`, `allow_auto=false`.
+   - `update_loop` / `pause_loop` / `resume_loop` / `rename` → `POST /api/agent/act` (allowlist SERVEUR stricte).
+7. **JAMAIS d'action sans clic de confirmation.** L'historique de chat est persisté (`chat_sessions` / `chat_messages`).
+
+## (c) Endpoints
+
+- **Gateway (le cerveau, Max)** — `POST /internal/agent/propose` (bearer INTERNAL_TOKEN, comme le reste) :
+  - Entrée `{ message, history[], project_id?, source }`. Le texte utilisateur est une **REQUÊTE à trier,
+    jamais des instructions à exécuter** (prompt-injection-aware : cadré dans le system prompt).
+  - `claude -p` non-interactif (`--output-format json`), env **sans secret** (`claude_cli.claude_env`),
+    **timeout dur 120s**, sortie = `AgentProposal` **validé par schéma** sinon erreur propre. Audit JSON
+    (qui a demandé quoi, proposition retournée). **Mockable** (interface injectable) pour les tests.
+- **Next (auth + allowlist + DB)** :
+  - `POST /api/agent/propose` → proxy `gatewayProxy` vers `/internal/agent/propose`.
+  - `POST /api/agent/act` → **allowlist stricte** des actions confirmées (`update_loop` {budget_usd, model,
+    autonomy≠auto}, `pause_loop`, `resume_loop`, `rename`). Toute action hors liste **rejetée** ; `autonomy=auto`
+    / `allow_auto=true` **refusés** (test explicite). Applique via Supabase (RLS authenticated).
+
+## Mocké vs réel (tests)
+
+- Le cerveau (`claude -p`) est **MOCKÉ et déterministe** dans pytest (aucun appel modèle réel, aucun run live).
+- **Exception M7** : UN test end-to-end réel sur **`kua-cobaye-test` uniquement**, budget ≤ 0,50 $, **stop à
+  `awaiting_approval`** (PR draft, **pas de merge**).
