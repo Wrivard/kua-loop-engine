@@ -192,9 +192,10 @@ function MobileTabBar({ onProjects }: { onProjects: () => void }) {
   const { data: projects } = useLiveQuery<SidebarProject[]>(getSidebarProjects, ["threads", "loops", "projects"], []);
   const { data: proposals } = useLiveQuery<Proposal[]>(getPendingProposals, ["proposals"], []);
   const awaiting = (projects ?? []).reduce((s, p) => s + p.awaiting, 0) + (proposals?.length ?? 0);
+  // py-2.5 → cible tap ≥ 44px (icône 20 + label 10 + paddings).
   const itemCls = (active: boolean) =>
     cn(
-      "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
+      "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
       active ? "text-brand" : "text-muted-foreground hover:text-foreground",
     );
 

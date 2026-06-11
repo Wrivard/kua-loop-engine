@@ -103,7 +103,7 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
           Rejeter
         </Button>
         <Button size="sm" disabled={busy} onClick={approveQuick}>
-          Approuver
+          Confirmer
         </Button>
       </div>
     </div>

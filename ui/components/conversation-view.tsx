@@ -138,7 +138,7 @@ export function ConversationView({ threadId }: { threadId: string }) {
             </Link>
           )}
           <div className="mt-1 flex items-start justify-between gap-3">
-            <h1 className="text-base font-semibold tracking-tight">{thread.subject}</h1>
+            <h1 className="min-w-0 flex-1 truncate text-base font-semibold tracking-tight">{thread.subject}</h1>
             {latest ? (
               <StatusPill status={latest.status} className="mt-0.5 shrink-0" />
             ) : (

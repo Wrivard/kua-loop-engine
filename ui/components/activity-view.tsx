@@ -71,9 +71,9 @@ function PauseControl() {
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <div className="rounded-lg border border-border p-3">
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn("mt-0.5 text-lg font-semibold tabular-nums", tone)}>{value}</p>
+    <div className="min-w-0 rounded-lg border border-border p-2.5 sm:p-3">
+      <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={cn("mt-0.5 truncate text-lg font-semibold tabular-nums", tone)}>{value}</p>
     </div>
   );
 }
@@ -136,7 +136,7 @@ export function ActivityView() {
               </div>
             ) : (data?.projects ?? []).length === 0 ? (
               <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-                Aucun projet. Tape en bas « ajoute mon repo … » pour démarrer.
+                Aucun projet. Tape en bas pour en importer un (« ajoute mon repo … »).
               </p>
             ) : (
               <div className="divide-y divide-border rounded-lg border border-border">
@@ -170,7 +170,7 @@ export function ActivityView() {
                     <span className="min-w-0 flex-1 truncate">{r.subject || facadeLabel(r.facade)}</span>
                     <CostBadge usd={r.cost_usd} />
                     <StatusBadge status={r.status} />
-                    {r.pr_url && <PrLink url={r.pr_url} className="shrink-0 border-0 px-0" />}
+                    {r.pr_url && <PrLink url={r.pr_url} className="hidden shrink-0 border-0 px-0 sm:inline-flex" />}
                     <span className="hidden shrink-0 text-muted-foreground sm:inline">{timeAgo(r.created_at)}</span>
                   </div>
                 ))}

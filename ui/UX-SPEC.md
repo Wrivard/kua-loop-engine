@@ -222,3 +222,31 @@ Sur 182 interactions auditées, l'écrasante majorité = **garder**. Consolidati
 Filtre/recherche inbox ; vraie barre de progrès de run (besoin d'événements backend) ; undo court sur
 approbation ; unification Notifications↔Inbox (autorité) ; coloration syntaxique du diff ; refonte fine des
 formulaires Réglages ; cache du coût mensuel.
+
+---
+
+## 11. RÉSULTAT DE L'AUDIT FINAL (M6 — 5 vérificateurs adversariaux sur le code livré)
+
+**Verdicts** : DISPATCHER+composer **solid** (0 finding) · GRAMMAIRE+carte de run **solid** (1 P2 corrigé) ·
+APPROUVER, SURVEILLER, MOBILE : issues triées ci-dessous.
+
+**Corrigé (réel)** : « Approuver » → **« Confirmer »** partout (cohérence) ; h1 du thread tronquable
+(380px) ; stats d'Activité `min-w-0 truncate` + PrLink masqué sur xs dans les runs récents ; toasts
+remontés au-dessus du dock + tab-bar (`calc(8.5rem + safe-area)`) ; tab-bar mobile `py-2.5` (cible ≥44px) ;
+libellés d'états vides unifiés (« Tape en bas pour… »).
+
+**Rejeté (faux positifs, avec justification)** :
+- *« Ouvrir la loop » quitte l'inbox (P0)* — c'est la **décision D** : lien secondaire = la sortie CHOISIE.
+- *4 CTA dans le module de revue (P1)* — ce sont exactement les 4 actions de la décision D, hiérarchisées
+  (primaire brand / outline / ghost / lien texte).
+- *Chip de scope compresse l'input (P1)* — le chip est sur sa **propre ligne** au-dessus du champ.
+- *Contraste light 40 % sur blanc = 2,2:1 (P1)* — faux : #666 sur blanc = **5,7:1**, passe WCAG AA.
+- *`max-w-md` déborde sur 380px (P1)* — `w-full max-w-md` = min(100 %, 448px) → pas de débordement.
+
+**Choix documentés** : `SystemHealth` (avec restart sysctl allowlisté) reste dans `/activity` — c'est le
+geste « ça roule pas → je redémarre du cell » ; logs/debug restent dans Réglages. Coûts : **Activité =
+survol** (mois, par projet, runs récents) ; **CostDashboard = drill-down** par projet. Toast « Rejeté »
+sans emoji = ton sobre voulu.
+
+**Notes P2 restantes** (en plus de la liste ci-dessus) : indicateur visuel de scroll horizontal sur le
+diff ; ajustement `visualViewport` du strip de proposition quand le clavier iOS est ouvert.

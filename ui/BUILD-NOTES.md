@@ -505,3 +505,36 @@ prose→fallback + null/vide), `inbox-state` (needsProject/canQuickConfirm/showG
 5 onglets Réglages ; barre dépensé/budget au dashboard ; tests de composants React (RTL+jsdom). Note ops
 inchangée : après tout déploiement gateway, `sudo systemctl restart kua-gateway` (la refonte est UI-only,
 donc côté Vercel : redéployer l'UI suffit).
+
+## UX DEEP-DIVE — L'APP REPENSÉE COMME UN PRODUIT (loop 2026-06-11, M1→M6)
+
+Reconception complète (spec d'abord : `ui/UX-SPEC.md`, issue d'un audit de 182 interactions + panel
+de nav). Présentation/interaction SEULEMENT — zéro logique métier/endpoint/DB/Runner/auth modifié,
+aucune nouvelle route de lecture nécessaire (tout réutilise les reads existants).
+
+**Avant → Après par vue**
+- **Partout** : il fallait cliquer « + Nouveau » (3 dialogues concurrents) → **ComposerDock fixe en bas
+  de TOUTES les vues** = l'entrée unique. @mention (autocomplete projets+façades), chip de cible (✕ pour
+  revenir au global), modes dérivés de la route (global/projet → cerveau ; thread → agent de façade),
+  propositions inline en feuille au-dessus du dock. Supprimés : global-chat, composer, brain-chat(-dialog),
+  new-conversation-dialog, boutons « + Nouveau »/« Nouvelle ».
+- **Accueil** : page-chat avec son propre input → **journal** (fil rendu, saisie déléguée au dock).
+- **Thread** : un run = 5-6 bulles répétitives + rapport de vérif plein PUIS ligne « Non vérifié »
+  contradictoire → **UNE carte qui évolue** (versions v1 repliée/v2 active via « refait N× »), verdict
+  **réconcilié EN UNE LIGNE** (gate définitif > narration agent > skipped ; SKIP = amber), résumé nettoyé
+  de sa section vérif, échos machine (« Run lancé », « PR #4 ouverte ») reclassés en lignes d'événement.
+  Grammaire stricte 4 types appliquée. `synthFromRuns` supprimé → `buildThreadView` (pur, testé).
+- **Inbox** : cliquer redirige vers le chat → **action sur place** : carte → module de revue (plein écran
+  mobile) avec avant→après (diff), verdict une-ligne, coût ; Confirmer (primaire) · Refaire avec nuance
+  (champ inline) · Rejeter · « Ouvrir la loop → » (sortie choisie). Quick Confirmer/Rejeter au pied,
+  optimistic + toasts → flow « vider l'inbox au pouce ».
+- **Nav** : Accueil(logo) · Inbox · **Activité (NOUVELLE page /activity** : pause moteur + santé worker +
+  coût du mois global/par projet + runs récents — le job SURVEILLER enfin visible) · Projets ; Réglages
+  relégué au footer profil. Mobile : tab-bar (Inbox/Activité/Projets) au-dessus du dock, safe-area-inset.
+
+**Qualité** : 49 vitest (22 nouveaux : run-state, @mention, thread-view, verify-reconcile) + 164 pytest +
+build + lint verts. Audit final adversarial (5 vérificateurs) : 2 dimensions solid d'emblée, 8 vrais
+correctifs appliqués, 5 faux positifs rejetés avec justification (détail : UX-SPEC §11).
+
+**Reste (P2)** : filtre inbox, barre de progrès réelle (événements backend requis), undo court,
+unification Notifications↔Inbox, coloration syntaxique diff, visualViewport clavier iOS.
