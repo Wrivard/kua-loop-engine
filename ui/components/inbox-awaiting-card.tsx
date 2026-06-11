@@ -68,7 +68,7 @@ export function InboxAwaitingCard({
   );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border/80">
+    <div className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border-strong">
       {run?.pr_url ? (
         <PrReview
           runId={run.id}

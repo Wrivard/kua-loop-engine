@@ -2,55 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens — monochrome Geist (doc 12). HSL triplets pour shadcn/ui.
-   La couleur des façades et des statuts vit hors de ces tokens (volontaire). */
+/* Tokens du système (voir ui/DESIGN-SYSTEM.md — règles d'usage).
+   Couches de fond : background (canevas) < card (surface) < popover (surface-élevée).
+   Bordures en ALPHA (tiennent sur toutes les couches). Texte 3 niveaux
+   (foreground / muted-foreground / faint). Accent brand = RARE. */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 4%;
+    --background: 0 0% 99%;
+    --foreground: 0 0% 7%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 4%;
+    --card-foreground: 0 0% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 4%;
+    --popover-foreground: 0 0% 7%;
     --primary: 0 0% 9%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96%;
+    --secondary: 0 0% 94%;
     --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 0 0% 95%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 38%;
+    --faint: 0 0% 52%;
+    --accent: 0 0% 0% / 0.05;
     --accent-foreground: 0 0% 9%;
-    --border: 0 0% 92%;
-    --input: 0 0% 90%;
-    /* Accent de MARQUE Küa (vert #00e57a) — distinct des 5 couleurs de façade.
-       Base monochrome ; l'accent = highlight seulement. Overridable par device
-       (Réglages → Apparence → Accent) via documentElement.style. */
+    --border: 0 0% 0% / 0.09;
+    --border-strong: 0 0% 0% / 0.16;
+    --input: 0 0% 0% / 0.14;
+    /* Accent de MARQUE Küa (#00e57a) — action primaire, état actif, focus. C'est tout.
+       Overridable par device (Réglages → Apparence) via documentElement.style. */
     --brand: 152 100% 45%;
-    --brand-foreground: 0 0% 4%;
+    --brand-foreground: 0 0% 5%;
     --ring: var(--brand);
-    --radius: 0.625rem;
+    /* Sémantiques sourdes — texte saturé ; fonds via /0.10-0.12 (tailwind *-soft). */
+    --success: 158 64% 38%;
+    --warn: 35 90% 38%;
+    --danger: 0 72% 48%;
+    --info: 212 90% 45%;
+    --radius: 10px;
   }
 
   .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 93%;
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 93%;
-    --popover: 0 0% 6%;
-    --popover-foreground: 0 0% 93%;
-    --primary: 0 0% 93%;
-    --primary-foreground: 0 0% 4%;
-    --secondary: 0 0% 11%;
-    --secondary-foreground: 0 0% 93%;
-    --muted: 0 0% 11%;
-    --muted-foreground: 0 0% 62%;
-    --accent: 0 0% 14%;
-    --accent-foreground: 0 0% 93%;
-    --border: 0 0% 16%;
-    --input: 0 0% 20%;
+    --background: 0 0% 5%; /* #0d0d0d */
+    --foreground: 0 0% 95%;
+    --card: 0 0% 8%; /* surface #141414 */
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 11%; /* surface-élevée #1c1c1c */
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 7%;
+    --secondary: 0 0% 13%; /* bulle utilisateur #212121 */
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 12%; /* fonds code / skeleton */
+    --muted-foreground: 0 0% 64%;
+    --faint: 0 0% 45%;
+    --accent: 0 0% 100% / 0.06; /* couche de survol */
+    --accent-foreground: 0 0% 95%;
+    --border: 0 0% 100% / 0.08;
+    --border-strong: 0 0% 100% / 0.16;
+    --input: 0 0% 100% / 0.12;
     --brand: 152 100% 45%;
-    --brand-foreground: 0 0% 4%;
+    --brand-foreground: 0 0% 5%;
     --ring: var(--brand);
+    --success: 158 60% 52%;
+    --warn: 38 92% 58%;
+    --danger: 0 80% 65%;
+    --info: 210 95% 64%;
   }
 
   * {
@@ -60,6 +74,11 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "liga", "calt";
+  }
+
+  /* Sélection de texte : brand discret. */
+  ::selection {
+    background: hsl(var(--brand) / 0.25);
   }
 
   /* Mobile : 16px sur les champs évite le zoom auto de Safari iOS au focus
@@ -72,15 +91,30 @@
     }
   }
 
-  /* Scrollbars sobres (Vercel-like) */
+  /* Scrollbars sobres */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-border;
+    border-radius: 9999px;
+    background: hsl(0 0% 100% / 0.12);
+  }
+  :root:not(.dark) ::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 0% / 0.16);
   }
   ::-webkit-scrollbar-track {
     background: transparent;
+  }
+
+  /* Tout le motion du système se coupe proprement. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

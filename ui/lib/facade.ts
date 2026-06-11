@@ -41,18 +41,19 @@ export function facadeLabel(facade: string): string {
 // Statut d'un run → pill sémantique (doc 12 : jamais la couleur de façade).
 type StatusStyle = { label: string; classes: string; pulse?: boolean };
 
+// Tokens sémantiques du système (DESIGN-SYSTEM §2) — sourds : fond *-soft + texte saturé.
 export const RUN_STATUS: Record<RunStatus, StatusStyle> = {
   queued: { label: "en file", classes: "bg-muted text-muted-foreground" },
-  preparing: { label: "préparation", classes: "bg-blue-500/10 text-blue-500", pulse: true },
-  running: { label: "en cours", classes: "bg-blue-500/10 text-blue-500", pulse: true },
-  verifying: { label: "vérification", classes: "bg-blue-500/10 text-blue-500", pulse: true },
-  awaiting_approval: { label: "à confirmer", classes: "bg-amber-500/10 text-amber-500" },
-  approved: { label: "approuvé", classes: "bg-emerald-500/10 text-emerald-500" },
-  pushed: { label: "publié", classes: "bg-emerald-500/10 text-emerald-500" },
+  preparing: { label: "préparation", classes: "bg-info-soft text-info", pulse: true },
+  running: { label: "en cours", classes: "bg-info-soft text-info", pulse: true },
+  verifying: { label: "vérification", classes: "bg-info-soft text-info", pulse: true },
+  awaiting_approval: { label: "à confirmer", classes: "bg-warn-soft text-warn" },
+  approved: { label: "approuvé", classes: "bg-success-soft text-success" },
+  pushed: { label: "publié", classes: "bg-success-soft text-success" },
   rejected: { label: "refusé", classes: "bg-muted text-muted-foreground" },
-  failed: { label: "échoué", classes: "bg-red-500/10 text-red-500" },
-  budget_exceeded: { label: "budget dépassé", classes: "bg-red-500/10 text-red-500" },
-  timed_out: { label: "temps écoulé", classes: "bg-red-500/10 text-red-500" },
+  failed: { label: "échoué", classes: "bg-danger-soft text-danger" },
+  budget_exceeded: { label: "budget dépassé", classes: "bg-danger-soft text-danger" },
+  timed_out: { label: "temps écoulé", classes: "bg-danger-soft text-danger" },
 };
 
 export function statusOf(status: string): StatusStyle {

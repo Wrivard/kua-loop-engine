@@ -90,12 +90,12 @@ export function BranchChip({ branch, className }: { branch: string | null | unde
 
 // Statuts hors-runs (PR/proposition) — mêmes couleurs sémantiques que facade.ts.
 const EXTRA_STATUS: Record<string, { label: string; classes: string }> = {
-  merged: { label: "mergé", classes: "bg-emerald-500/10 text-emerald-500" },
+  merged: { label: "mergé", classes: "bg-success-soft text-success" },
   open: { label: "ouvert", classes: "bg-muted text-muted-foreground" },
   closed: { label: "fermé", classes: "bg-muted text-muted-foreground" },
   draft: { label: "draft", classes: "bg-muted text-muted-foreground" },
-  pending: { label: "à confirmer", classes: "bg-amber-500/10 text-amber-500" },
-  approved: { label: "approuvé", classes: "bg-emerald-500/10 text-emerald-500" },
+  pending: { label: "à confirmer", classes: "bg-warn-soft text-warn" },
+  approved: { label: "approuvé", classes: "bg-success-soft text-success" },
   dismissed: { label: "rejeté", classes: "bg-muted text-muted-foreground" },
 };
 

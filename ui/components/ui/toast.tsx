@@ -30,9 +30,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             role="status"
             className={cn(
-              "pointer-events-auto max-w-sm rounded-lg border bg-popover px-3.5 py-2.5 text-sm shadow-lg duration-200 animate-in fade-in slide-in-from-bottom-2",
-              t.tone === "success" && "border-emerald-500/30 text-emerald-500",
-              t.tone === "error" && "border-red-500/30 text-red-500",
+              "pointer-events-auto max-w-sm rounded-md border bg-popover px-3.5 py-2.5 text-sm shadow-float duration-200 animate-in fade-in slide-in-from-bottom-2",
+              t.tone === "success" && "border-success/30 text-success",
+              t.tone === "error" && "border-danger/30 text-danger",
               t.tone === "default" && "border-border text-foreground",
             )}
           >

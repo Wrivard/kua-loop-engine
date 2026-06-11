@@ -66,7 +66,7 @@ export function ProposalInboxCard({ proposal, onResolved }: { proposal: Proposal
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border/80">
+    <div className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border-strong">
       <InboxDetail
         proposal={proposal}
         projects={projects}
