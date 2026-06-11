@@ -33,6 +33,12 @@ def test_token_present_ok(monkeypatch):
     assert bot.require_token() == "x"
 
 
+def test_format_notification():
+    txt = bot.format_notification({"kind": "merged", "title": "Fusionné", "body": "dans main"})
+    assert "✅" in txt and "Fusionné" in txt and "dans main" in txt
+    assert bot.format_notification({"kind": "x", "title": "T"}) == "🔔 **T**"
+
+
 def test_is_confirmation():
     for ok in ("approve", "GO", "oui", "✅", "  ok  "):
         assert bot.is_confirmation(ok)

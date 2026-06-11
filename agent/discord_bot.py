@@ -33,6 +33,7 @@ class DiscordConfigError(RuntimeError):
 class DiscordConfig:
     channels: dict[str, str] = field(default_factory=dict)  # channel_id → project_id
     user_ids: set[str] = field(default_factory=set)
+    notif_channel: Optional[str] = None  # channel où poster les notifications (cloche → Discord)
 
     def allows_channel(self, channel_id: str) -> bool:
         return channel_id in self.channels
@@ -52,7 +53,20 @@ def load_config() -> DiscordConfig:
     return DiscordConfig(
         channels={str(k): str(v) for k, v in channels.items()},
         user_ids={str(u) for u in (raw.get("user_ids") or [])},
+        notif_channel=str(raw["notif_channel"]) if raw.get("notif_channel") else None,
     )
+
+
+_NOTIF_EMOJI = {"proposal": "💡", "awaiting": "⏳", "failed": "❌", "merged": "✅", "budget": "💸"}
+
+
+def format_notification(notif: dict[str, Any]) -> str:
+    """Rend une notification (cloche) pour le canal Discord (réutilisé quand le bot est live)."""
+    emoji = _NOTIF_EMOJI.get(str(notif.get("kind")), "🔔")
+    parts = [f"{emoji} **{notif.get('title', '')}**"]
+    if notif.get("body"):
+        parts.append(str(notif["body"]))
+    return "\n".join(parts)
 
 
 def require_token() -> str:

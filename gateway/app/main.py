@@ -473,6 +473,9 @@ async def internal_agent_propose(request: Request) -> JSONResponse:
             from kua_core import db as core_db  # noqa: PLC0415
 
             proposal_id = core_db.create_proposal(source, project_id, proposal)
+            core_db.create_notification(
+                "proposal", f"Proposition ({source}) — {proposal['facade']}", proposal.get("resume_humain"), "/inbox"
+            )
         except Exception as exc:  # noqa: BLE001
             log_json("proposal_persist_failed", source=source, error=str(exc))
 

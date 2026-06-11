@@ -30,6 +30,7 @@ import type {
   LoopWithProject,
   MessageRole,
   MessageWithRun,
+  Notification,
   Plan,
   Project,
   ProjectConnector,
@@ -333,6 +334,31 @@ export async function updateLoopTrigger(loopId: string, trigger: string): Promis
   const { data } = await supabase.from("loops").select("config").eq("id", loopId).maybeSingle();
   const config = { ...((data as { config?: Record<string, unknown> } | null)?.config ?? {}), trigger };
   const { error } = await supabase.from("loops").update({ config }).eq("id", loopId);
+  if (error) throw error;
+}
+
+// --- Notifications (cloche app — migration 011) ---
+
+export async function getNotifications(limit = 30): Promise<Notification[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data as Notification[]) ?? [];
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase.from("notifications").update({ read: true }).eq("read", false);
   if (error) throw error;
 }
 

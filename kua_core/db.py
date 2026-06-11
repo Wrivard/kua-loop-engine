@@ -647,6 +647,17 @@ def update_loop_fields(
             cur.execute(query, params)
 
 
+def create_notification(kind: str, title: str, body: Optional[str] = None, link: Optional[str] = None) -> str:
+    """Crée une notification (cloche app — migration 011). Retourne l'id."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO notifications (kind, title, body, link) VALUES (%s, %s, %s, %s) RETURNING id",
+                (kind, title, body, link),
+            )
+            return str(cur.fetchone()[0])
+
+
 def create_proposal(source: str, project_id: Optional[str], payload: dict[str, Any]) -> str:
     """Écrit une proposition du cerveau dans l'inbox (migration 010). Retourne l'id."""
     from psycopg.types.json import Json  # noqa: PLC0415

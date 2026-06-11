@@ -218,6 +218,17 @@ export interface AgentProposal {
   resume_humain: string;
 }
 
+/** Notification (cloche app — migration 011). */
+export interface Notification {
+  id: string;
+  kind: string; // proposal|awaiting|failed|merged|budget
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  created_at: string;
+}
+
 /** Proposition du cerveau dans l'inbox (migration 010). */
 export interface Proposal {
   id: string;

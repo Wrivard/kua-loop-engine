@@ -16,6 +16,7 @@ import { FacadeDot } from "@/components/facade-mark";
 import { NewProjectDialog } from "@/components/new-project-dialog";
 import { useLiveQuery } from "@/lib/use-live-query";
 import { getPendingProposals, getSidebarProjects } from "@/lib/queries";
+import { NotificationBell } from "@/components/notification-bell";
 import { useCurrentUser, signOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import type { Proposal, SidebarProject } from "@/lib/types";
@@ -54,14 +55,17 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       {/* Wordmark */}
-      <Link
-        href="/"
-        onClick={onNavigate}
-        className="flex items-center gap-2 px-4 py-4 text-sm font-medium tracking-tight"
-      >
-        <span className="inline-block h-2 w-2 rounded-full bg-brand" />
-        Küa · Loops
-      </Link>
+      <div className="flex items-center justify-between pr-2">
+        <Link
+          href="/"
+          onClick={onNavigate}
+          className="flex items-center gap-2 px-4 py-4 text-sm font-medium tracking-tight"
+        >
+          <span className="inline-block h-2 w-2 rounded-full bg-brand" />
+          Küa · Loops
+        </Link>
+        <NotificationBell />
+      </div>
 
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
         <Link
@@ -205,6 +209,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="inline-block h-2 w-2 rounded-full bg-brand" />
             Küa · Loops
           </span>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </header>
 
         <main className="min-w-0 flex-1">{children}</main>

@@ -85,6 +85,14 @@ def _write_log(run_id: str, content: str) -> Optional[str]:
         return None
 
 
+def _notify(kind: str, title: str, body: Optional[str] = None, link: Optional[str] = None) -> None:
+    """Émet une notification (cloche app). Best-effort : ne casse jamais le pipeline."""
+    try:
+        db.create_notification(kind, title, body, link)
+    except Exception:
+        logger.exception("kua: notification a échoué (%s)", kind)
+
+
 def _fail(ctx: RunCtx, status: str, summary: str, log_path: Optional[str] = None) -> dict[str, Any]:
     """Marque un run en échec — DÉFENSIF : chaque écriture est best-effort pour ne
     jamais laisser un run bloqué, même si la DB est transitoirement indisponible."""
@@ -100,6 +108,10 @@ def _fail(ctx: RunCtx, status: str, summary: str, log_path: Optional[str] = None
         db.post_message(ctx.thread_id, "agent", f"Échec du run ({status}) : {summary}", run_id=ctx.run_id)
     except Exception:
         logger.exception("kua: _fail post_message a échoué thread_id=%s", ctx.thread_id)
+    _notify(
+        "budget" if status == "budget_exceeded" else "failed",
+        f"Run {status} — {(ctx.subject or ctx.goal)[:50]}", summary[:200], f"/c/{ctx.thread_id}",
+    )
     return {"status": status, "summary": summary}
 
 
@@ -209,6 +221,7 @@ def process_run(
                 f"(échec API). Coût : {cost} · vérif : {vr.status}"
             )
         db.post_message(ctx.thread_id, "agent", msg, run_id=run_id)
+        _notify("awaiting", f"À confirmer — {(ctx.subject or ctx.goal)[:50]}", msg[:200], f"/c/{ctx.thread_id}")
 
         # --- GATE d'autonomie : auto = loop=auto ET projet.allow_auto ET non-moteur ET vérif passée ---
         if ctx.autonomy == "auto" and ctx.allow_auto and not ctx.is_engine and vr.status == "passed":
@@ -288,6 +301,7 @@ def _merge_run(run_id: str) -> dict[str, Any]:
         shutil.rmtree(tmp, ignore_errors=True)
 
     _terminate(run_id, thread_id, "pushed", f"Approuvé → fusionné dans {ctx.default_branch} et publié.", resolved=True)
+    _notify("merged", f"Fusionné dans {ctx.default_branch} — {(ctx.subject or '')[:50]}", None, f"/c/{thread_id}")
     return {"status": "pushed"}
 
 
